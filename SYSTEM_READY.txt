@@ -1,0 +1,46 @@
+╔══════════════════════════════════════════════════════════════╗
+║                                                              ║
+║     🎉 THE RESSEY TOURS CRMS IS NOW RUNNING! 🎉            ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+
+✅ BACKEND SERVER: Running on http://localhost:5000
+✅ FRONTEND SERVER: Starting on http://localhost:3000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌐 OPEN IN YOUR BROWSER:
+
+   http://localhost:3000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔐 LOGIN CREDENTIALS:
+
+   Email:    admin@ressytours.com
+   Password: admin123
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⏱️  IMPORTANT:
+
+   • Frontend takes 30-60 seconds to compile
+   • If page doesn't load, wait a bit longer
+   • Check the PowerShell windows for status
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 WHAT YOU SHOULD SEE:
+
+   1. Two PowerShell windows opened:
+      - Backend Server (shows "Server running on port 5000")
+      - Frontend Server (shows "Compiled successfully!" when ready)
+
+   2. Browser opened to: http://localhost:3000
+      - Login page should appear
+      - Enter credentials above
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ YOUR SYSTEM IS READY TO USE! ✨
+

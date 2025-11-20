@@ -1,0 +1,43 @@
+{
+  "name": "ressey-tours-crms",
+  "version": "1.0.0",
+  "description": "THE RESSEY TOURS AND CAR HIRE Management System - Paperless Car Rental Management System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "client": "cd frontend && npm start",
+    "client-install": "cd frontend && npm install",
+    "install-all": "npm install && cd frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "setup": "node setup-env.js && node create-admin.js",
+    "deploy": "npm run build && npm start"
+  },
+  "keywords": [
+    "car-rental",
+    "fleet-management",
+    "mpesa",
+    "mern"
+  ],
+  "author": "THE RESSEY TOURS",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^7.5.0",
+    "dotenv": "^16.3.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "cors": "^2.8.5",
+    "express-validator": "^7.0.1",
+    "axios": "^1.5.0",
+    "node-cron": "^3.0.2",
+    "nodemailer": "^6.9.4",
+    "pdf-lib": "^1.17.1",
+    "multer": "^1.4.5-lts.1",
+    "moment": "^2.29.4",
+    "express-rate-limit": "^6.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

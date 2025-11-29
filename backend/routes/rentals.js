@@ -102,10 +102,10 @@ router.post('/', protect, authorize('Admin'), async (req, res) => {
       });
     }
 
-    if (vehicle.availability_status !== 'In-Fleet') {
+    if (vehicle.availability_status !== 'Parking') {
       return res.status(400).json({
         success: false,
-        message: 'Vehicle is not available for rental'
+        message: `Vehicle is not available for rental. Current status: ${vehicle.availability_status}`
       });
     }
 
@@ -113,7 +113,17 @@ router.post('/', protect, authorize('Admin'), async (req, res) => {
     const start = new Date(start_date);
     const end = new Date(end_date);
     const duration_days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-    const total_fee_gross = vehicle.daily_rate * duration_days;
+    
+    // Apply dynamic pricing if seasons are configured
+    const PricingSeason = require('../models/PricingSeason');
+    let rateModifier = 1.0;
+    try {
+      rateModifier = await PricingSeason.getRateModifierForDate(start, vehicle.category);
+    } catch (error) {
+      console.error('Error getting rate modifier:', error);
+    }
+    
+    const total_fee_gross = vehicle.daily_rate * duration_days * rateModifier;
 
     // Create rental
     const rentalData = {
@@ -136,7 +146,7 @@ router.post('/', protect, authorize('Admin'), async (req, res) => {
     await rental.save();
 
     // Update vehicle status
-    vehicle.availability_status = 'Rented';
+    vehicle.availability_status = 'Rented Out';
     await vehicle.save();
 
     // Update customer history

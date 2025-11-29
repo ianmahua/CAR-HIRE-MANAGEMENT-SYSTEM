@@ -53,6 +53,24 @@ const customerSchema = new mongoose.Schema({
     enum: ['Economy', 'Executive', null],
     default: null
   },
+  documents: {
+    id_scan: {
+      url: String,
+      uploaded_at: Date,
+      verified: { type: Boolean, default: false }
+    },
+    license_scan: {
+      url: String,
+      uploaded_at: Date,
+      verified: { type: Boolean, default: false }
+    },
+    other_documents: [{
+      name: String,
+      url: String,
+      uploaded_at: Date,
+      document_type: String
+    }]
+  },
   created_at: {
     type: Date,
     default: Date.now

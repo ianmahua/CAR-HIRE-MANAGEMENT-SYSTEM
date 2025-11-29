@@ -80,8 +80,8 @@ const vehicleSchema = new mongoose.Schema({
   },
   availability_status: {
     type: String,
-    enum: ['In-Fleet', 'Rented', 'Servicing', 'Out of Service'],
-    default: 'In-Fleet'
+    enum: ['Parking', 'Rented Out', 'In Garage', 'Out of Service'],
+    default: 'Parking'
   },
   service_log: [serviceLogSchema],
   monthly_revenue_mtd: {

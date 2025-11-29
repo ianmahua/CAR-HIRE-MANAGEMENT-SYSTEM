@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const cron = require('node-cron');
+const session = require('express-session');
+const passport = require('passport');
 
 // Load environment variables
 dotenv.config();
@@ -20,6 +22,7 @@ const driverRoutes = require('./routes/driver');
 const ownerRoutes = require('./routes/owner');
 const mpesaRoutes = require('./routes/mpesa');
 const reportRoutes = require('./routes/reports');
+const userRoutes = require('./routes/users');
 
 // Import scheduled tasks
 const { generateWeeklyReport } = require('./services/reportService');
@@ -27,9 +30,28 @@ const { generateWeeklyReport } = require('./services/reportService');
 const app = express();
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+  }
+}));
+
+// Passport middleware
+app.use(passport.initialize());
+app.use(passport.session());
 
 // Static files for uploads
 app.use('/uploads', express.static('uploads'));
@@ -55,6 +77,7 @@ app.use('/api/driver', driverRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api/mpesa', mpesaRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/users', userRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

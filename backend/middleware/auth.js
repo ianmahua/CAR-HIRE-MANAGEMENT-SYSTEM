@@ -25,6 +25,11 @@ exports.protect = async (req, res, next) => {
       // Get user from token
       req.user = await User.findById(decoded.id).select('-password_hash');
       
+      // Ensure role is set from token if available
+      if (decoded.role) {
+        req.user.role = decoded.role;
+      }
+      
       if (!req.user || !req.user.is_active) {
         return res.status(401).json({
           success: false,
@@ -54,6 +59,9 @@ exports.protect = async (req, res, next) => {
 // Grant access to specific roles
 exports.authorize = (...roles) => {
   return (req, res, next) => {
+    if (req.user.role === 'Admin') { // Admin is superuser
+      return next();
+    }
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,

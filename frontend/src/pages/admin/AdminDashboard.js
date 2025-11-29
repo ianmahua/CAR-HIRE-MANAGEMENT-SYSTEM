@@ -28,6 +28,7 @@ import FleetManagement from './FleetManagement';
 import BookingManagement from './BookingManagement';
 import CustomerManagement from './CustomerManagement';
 import FinancialReconciliation from './FinancialReconciliation';
+import UserManagement from './UserManagement';
 
 const drawerWidth = 240;
 
@@ -40,6 +41,7 @@ const AdminDashboard = () => {
     { text: 'Fleet Management', icon: <DirectionsCarIcon />, path: '/admin/fleet' },
     { text: 'Bookings', icon: <BookOnlineIcon />, path: '/admin/bookings' },
     { text: 'Customers', icon: <PeopleIcon />, path: '/admin/customers' },
+    { text: 'User Management', icon: <PeopleIcon />, path: '/admin/users' },
     { text: 'Financials', icon: <PaymentIcon />, path: '/admin/financials' },
     { text: 'Reports', icon: <AssessmentIcon />, path: '/admin/reports' },
   ];
@@ -108,6 +110,7 @@ const AdminDashboard = () => {
             <Route path="/fleet" element={<FleetManagement />} />
             <Route path="/bookings" element={<BookingManagement />} />
             <Route path="/customers" element={<CustomerManagement />} />
+            <Route path="/users" element={<UserManagement />} />
             <Route path="/financials" element={<FinancialReconciliation />} />
           </Routes>
         </Container>

@@ -47,7 +47,7 @@ Update the following required variables:
 Create `frontend/.env`:
 
 ```bash
-REACT_APP_API_URL=http://localhost:5000
+REACT_APP_API_URL=http://localhost:5503
 ```
 
 ### 5. Database Setup

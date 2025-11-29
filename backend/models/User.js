@@ -28,15 +28,33 @@ const userSchema = new mongoose.Schema({
   },
   phone_msisdn: {
     type: String,
-    required: [true, 'Phone number is required'],
+    required: false,
     unique: true,
+    sparse: true,
     trim: true,
-    match: [/^254\d{9}$/, 'Phone number must be in format 254XXXXXXXXX']
+    validate: {
+      validator: function(v) {
+        if (!v) return true; // Allow empty/null
+        return /^254\d{9}$/.test(v);
+      },
+      message: 'Phone number must be in format 254XXXXXXXXX'
+    }
+  },
+  google_id: {
+    type: String,
+    unique: true,
+    sparse: true
   },
   password_hash: {
     type: String,
-    required: [true, 'Password is required'],
+    required: false,
     minlength: 6
+  },
+  password_reset_token: {
+    type: String
+  },
+  password_reset_expires: {
+    type: Date
   },
   payout_account_details: {
     account_name: String,
@@ -70,7 +88,7 @@ userSchema.index({ role: 1 });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
-  if (!this.isModified('password_hash')) return next();
+  if (!this.isModified('password_hash') || !this.password_hash) return next();
   
   try {
     const salt = await bcrypt.genSalt(10);
@@ -83,6 +101,7 @@ userSchema.pre('save', async function(next) {
 
 // Method to compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
+  if (!this.password_hash) return false;
   return await bcrypt.compare(candidatePassword, this.password_hash);
 };
 

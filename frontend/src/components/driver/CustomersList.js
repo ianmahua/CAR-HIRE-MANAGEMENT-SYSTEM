@@ -33,19 +33,10 @@ import {
   History as HistoryIcon
 } from '@mui/icons-material';
 
-const CustomersList = () => {
+const CustomersList = ({ customers = [] }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
-
-  const { data: customers, isLoading } = useQuery('customers', async () => {
-    try {
-      const response = await api.get('/api/customers');
-      return response.data.data || [];
-    } catch (error) {
-      return [];
-    }
-  });
 
   const filteredCustomers = customers?.filter(customer => {
     const searchLower = searchTerm.toLowerCase();
@@ -62,13 +53,6 @@ const CustomersList = () => {
     setDetailDialogOpen(true);
   };
 
-  if (isLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <LinearProgress sx={{ width: 300 }} />
-      </Box>
-    );
-  }
 
   return (
     <Box>

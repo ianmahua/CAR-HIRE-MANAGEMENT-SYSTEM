@@ -36,7 +36,8 @@ const ExtensionDialog = ({ open, onClose, rental, initialAction = 'extend' }) =>
 
   const extensionMutation = useMutation(
     async (data) => {
-      const response = await api.put(`/api/rentals/${rental._id}/extend`, data);
+      const rentalId = rental._id || rental.rental_id || rental.booking_id;
+      const response = await api.put(`/api/rentals/${rentalId}/extend`, data);
       return response.data;
     },
     {
@@ -54,7 +55,8 @@ const ExtensionDialog = ({ open, onClose, rental, initialAction = 'extend' }) =>
 
   const returnMutation = useMutation(
     async () => {
-      const response = await api.put(`/api/rentals/${rental._id}/return`, {
+      const rentalId = rental._id || rental.rental_id || rental.booking_id;
+      const response = await api.put(`/api/rentals/${rentalId}/return`, {
         payment_status: paymentStatus,
         notes
       });
@@ -125,10 +127,10 @@ const ExtensionDialog = ({ open, onClose, rental, initialAction = 'extend' }) =>
         <Box sx={{ mb: 3 }}>
           <Alert severity="info" sx={{ mb: 2 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-              Vehicle: {rental.vehicle_ref?.license_plate || 'N/A'}
+              Vehicle: {rental.vehicle_ref?.license_plate || rental.license_plate || 'N/A'}
             </Typography>
             <Typography variant="body2">
-              Customer: {rental.customer_ref?.name || 'N/A'}
+              Customer: {rental.customer_ref?.name || rental.customer_name || 'N/A'}
             </Typography>
             <Typography variant="body2">
               Current End Date: {rental.end_date ? new Date(rental.end_date).toLocaleDateString() : 'N/A'}

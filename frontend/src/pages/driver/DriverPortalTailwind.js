@@ -22,7 +22,6 @@ import HireOutModal from '../../components/dialogs/HireOutModal';
 import ReturnVehicleModal from '../../components/dialogs/ReturnVehicleModal';
 import ExtendRentalModal from '../../components/dialogs/ExtendRentalModal';
 import CustomerInfoModal from '../../components/dialogs/CustomerInfoModal';
-import CreateBookingModal from '../../components/dialogs/CreateBookingModal';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
@@ -155,26 +154,8 @@ export default function DriverPortal() {
         axios.get(`${API_URL}/api/rentals`, { headers }).catch(() => ({ data: { success: false } }))
       ]);
 
-      if (vehiclesRes.data.success) {
-        setVehicles(vehiclesRes.data.data || []);
-      } else {
-        // Fallback mock data for testing
-        setVehicles([
-          { _id: '1', license_plate: 'KDA 001A', make: 'Toyota', model: 'Prado', year: 2020, category: 'SUV', daily_rate: 6500, availability_status: 'Parking' },
-          { _id: '2', license_plate: 'KDC 002B', make: 'Nissan', model: 'X-Trail', year: 2018, category: 'SUV', daily_rate: 4500, availability_status: 'Rented Out' },
-          { _id: '3', license_plate: 'KBB 333Z', make: 'Subaru', model: 'Forester', year: 2019, category: 'Compact', daily_rate: 4000, availability_status: 'Parking' }
-        ]);
-      }
-
-      if (customersRes.data.success) {
-        setCustomers(customersRes.data.data || []);
-      } else {
-        setCustomers([
-          { _id: '1', name: 'John Doe', phone: '254712345678', email: 'john@example.com', total_bookings: 5, total_spent: 150000 },
-          { _id: '2', name: 'Jane Smith', phone: '254723456789', email: 'jane@example.com', total_bookings: 3, total_spent: 90000 }
-        ]);
-      }
-
+      if (vehiclesRes.data.success) setVehicles(vehiclesRes.data.data || []);
+      if (customersRes.data.success) setCustomers(customersRes.data.data || []);
       if (rentalsRes.data.success) {
         const rentalsData = rentalsRes.data.data || [];
         setRentals(rentalsData);
@@ -192,28 +173,10 @@ export default function DriverPortal() {
             total_amount: r.total_fee_gross || 0
           }));
         setBookings(bookingsData);
-      } else {
-        // Mock rental data for testing
-        const today = new Date();
-        const tomorrow = new Date(today);
-        tomorrow.setDate(today.getDate() + 1);
-        const mockRentals = [
-          {
-            _id: '1',
-            rental_status: 'Active',
-            start_date: new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            end_date: today.toISOString(),
-            total_fee_gross: 35000,
-            vehicle_ref: { license_plate: 'KDC 002B', _id: '2' },
-            customer_ref: { name: 'John Doe', _id: '1' }
-          }
-        ];
-        setRentals(mockRentals);
-        setBookings([]);
       }
 
       // Generate notifications
-      const autoNotifications = generateNotifications(rentalsRes.data.success ? rentalsRes.data.data : rentals, bookings);
+      const autoNotifications = generateNotifications(rentalsRes.data.data || [], bookings);
       setNotifications(autoNotifications);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -231,24 +194,23 @@ export default function DriverPortal() {
 
   // Calculate stats
   const stats = {
-    activeRentals: rentals.filter(r => r.rental_status === 'Active').length || 0,
-    availableVehicles: vehicles.filter(v => v.availability_status === 'Parking').length || 0,
+    activeRentals: rentals.filter(r => r.rental_status === 'Active').length,
+    availableVehicles: vehicles.filter(v => v.availability_status === 'Parking').length,
     revenueThisWeek: rentals
       .filter(r => {
-        if (!r.start_date) return false;
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
-        return new Date(r.start_date) >= weekAgo && r.rental_status === 'Completed';
+        return new Date(r.start_date || 0) >= weekAgo && r.rental_status === 'Completed';
       })
-      .reduce((sum, r) => sum + (r.total_fee_gross || 0), 0) || 0,
+      .reduce((sum, r) => sum + (r.total_fee_gross || 0), 0),
     returnsToday: rentals.filter(r => {
-      if (r.rental_status !== 'Active' || !r.end_date) return false;
+      if (r.rental_status !== 'Active') return false;
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const returnDate = new Date(r.end_date);
       returnDate.setHours(0, 0, 0, 0);
       return returnDate.getTime() === today.getTime();
-    }).length || 0
+    }).length
   };
 
   // Upcoming returns
@@ -354,26 +316,6 @@ export default function DriverPortal() {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to extend rental');
-    }
-  };
-
-  const handleCreateBooking = async (formData) => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/api/rentals`, {
-        ...formData,
-        rental_status: 'Pending',
-        hire_type: 'Direct Client'
-      }, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (response.data.success) {
-        toast.success('Booking created successfully!');
-        fetchAllData();
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create booking');
     }
   };
 
@@ -525,14 +467,6 @@ export default function DriverPortal() {
                 onViewBookings={() => setActiveTab('bookings')}
                 onViewReturns={() => setActiveTab('bookings')}
                 onViewNotifications={() => setActiveTab('notifications')}
-                onProcessReturn={(rental) => {
-                  setSelectedRental(rental);
-                  setReturnModalOpen(true);
-                }}
-                onExtendRental={(rental) => {
-                  setSelectedRental(rental);
-                  setExtendModalOpen(true);
-                }}
               />
             )}
 
@@ -625,14 +559,6 @@ export default function DriverPortal() {
         }}
         customer={selectedCustomer}
         rentals={rentals}
-      />
-
-      <CreateBookingModal
-        isOpen={bookingModalOpen}
-        onClose={() => setBookingModalOpen(false)}
-        vehicles={vehicles}
-        customers={customers}
-        onSubmit={handleCreateBooking}
       />
     </div>
   );

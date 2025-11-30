@@ -62,11 +62,14 @@ const sendPasswordResetEmail = async (email, resetToken, resetUrl) => {
 };
 
 // Send user invitation email
-const sendUserInvitationEmail = async (email, role) => {
+const sendUserInvitationEmail = async (email, role, resetUrl) => {
   try {
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       console.log('Email credentials not configured. User invitation for:', email, 'Role:', role);
-      return { sent: false };
+      if (resetUrl) {
+        console.log('Reset URL:', resetUrl);
+      }
+      return { sent: false, url: resetUrl };
     }
 
     const mailOptions = {
@@ -77,16 +80,28 @@ const sendUserInvitationEmail = async (email, role) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #ea580c;">Welcome to RESSEY TOURS CRMS</h2>
           <p>Your account has been created with the role: <strong>${role}</strong></p>
-          <p>To get started, please set your password:</p>
+          <p>To get started, please set your password by clicking the button below:</p>
+          ${resetUrl ? `
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resetUrl}" 
+               style="display: inline-block; padding: 12px 24px; background-color: #ea580c; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">
+              Set Your Password
+            </a>
+          </div>
+          <p>Or copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; color: #666; background-color: #f5f5f5; padding: 10px; border-radius: 4px;">${resetUrl}</p>
+          ` : `
+          <p>To set your password:</p>
           <ol>
             <li>Go to the login page</li>
             <li>Click "Forgot Password?"</li>
             <li>Enter your email: <strong>${email}</strong></li>
             <li>Follow the instructions to set your password</li>
           </ol>
+          `}
           <p>Once your password is set, you can log in with your email and selected role.</p>
           <p style="color: #999; font-size: 12px; margin-top: 30px;">
-            If you have any questions, please contact your administrator.
+            ${resetUrl ? 'This link will expire in 7 days. ' : ''}If you have any questions, please contact your administrator.
           </p>
         </div>
       `
@@ -97,7 +112,7 @@ const sendUserInvitationEmail = async (email, role) => {
     return { sent: true, messageId: info.messageId };
   } catch (error) {
     console.error('Error sending user invitation email:', error);
-    return { sent: false, error: error.message };
+    return { sent: false, error: error.message, url: resetUrl };
   }
 };
 

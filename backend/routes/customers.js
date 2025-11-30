@@ -5,8 +5,8 @@ const { protect, authorize } = require('../middleware/auth');
 
 // @route   GET /api/customers
 // @desc    Get all customers
-// @access  Private (Admin, Director)
-router.get('/', protect, authorize('Admin', 'Director'), async (req, res) => {
+// @access  Private (Admin, Director, Driver)
+router.get('/', protect, authorize('Admin', 'Director', 'Driver'), async (req, res) => {
   try {
     const { search, is_returning } = req.query;
     const query = {};
@@ -42,8 +42,8 @@ router.get('/', protect, authorize('Admin', 'Director'), async (req, res) => {
 
 // @route   GET /api/customers/:id
 // @desc    Get single customer
-// @access  Private (Admin, Director)
-router.get('/:id', protect, authorize('Admin', 'Director'), async (req, res) => {
+// @access  Private (Admin, Director, Driver)
+router.get('/:id', protect, authorize('Admin', 'Director', 'Driver'), async (req, res) => {
   try {
     const customer = await Customer.findById(req.params.id)
       .populate('hire_history.rental_id');

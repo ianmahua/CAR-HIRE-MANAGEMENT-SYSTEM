@@ -105,6 +105,38 @@ const UserManagement = () => {
     }
   );
 
+  const updateRoleMutation = useMutation(
+    async ({ id, role }) => {
+      const response = await api.patch(`/api/users/${id}/role`, { role });
+      return response.data;
+    },
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries('users');
+        toast.success('User role updated successfully');
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to update user role');
+      }
+    }
+  );
+
+  const updateStatusMutation = useMutation(
+    async ({ id, is_active }) => {
+      const response = await api.patch(`/api/users/${id}/status`, { is_active });
+      return response.data;
+    },
+    {
+      onSuccess: (_, variables) => {
+        queryClient.invalidateQueries('users');
+        toast.success(`User ${variables.is_active ? 'activated' : 'deactivated'} successfully`);
+      },
+      onError: (error) => {
+        toast.error(error.response?.data?.message || 'Failed to update user status');
+      }
+    }
+  );
+
   const deleteUserMutation = useMutation(
     async (id) => {
       const response = await api.delete(`/api/users/${id}`);
@@ -183,14 +215,15 @@ const UserManagement = () => {
         return;
       }
       if (!formData.role) {
-        toast.error('Please select a role (Director or Driver)');
+        toast.error('Please select a role');
         return;
       }
-      if (formData.role !== 'Director' && formData.role !== 'Driver') {
-        toast.error('Only Director or Driver roles can be assigned');
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email)) {
+        toast.error('Please enter a valid email address');
         return;
       }
-      console.log('Submitting user with data:', formData);
       addUserMutation.mutate({
         email: formData.email,
         role: formData.role,
@@ -304,6 +337,7 @@ const UserManagement = () => {
                   <MenuItem value="Director">Director</MenuItem>
                   <MenuItem value="Driver">Driver</MenuItem>
                   <MenuItem value="Owner">Owner</MenuItem>
+                  <MenuItem value="Customer">Customer</MenuItem>
                 </Select>
               </FormControl>
             </Grid>
@@ -339,16 +373,71 @@ const UserManagement = () => {
                       <TableCell>{user.email}</TableCell>
                       <TableCell>{user.phone_msisdn || 'N/A'}</TableCell>
                       <TableCell>
-                        <Chip
-                          icon={getRoleIcon(user.role)}
-                          label={user.role}
-                          size="small"
-                          sx={{
-                            bgcolor: getRoleColor(user.role).bg,
-                            color: getRoleColor(user.role).color,
-                            fontWeight: 600
-                          }}
-                        />
+                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                          <Select
+                            value={user.role}
+                            onChange={(e) => {
+                              const newRole = e.target.value;
+                              if (newRole !== user.role) {
+                                updateRoleMutation.mutate({
+                                  id: user._id,
+                                  role: newRole
+                                });
+                              }
+                            }}
+                            disabled={updateRoleMutation.isLoading || user.role === 'Admin'}
+                            sx={{
+                              height: '32px',
+                              fontSize: '0.875rem',
+                              '& .MuiSelect-select': {
+                                py: 0.5,
+                                px: 1.5,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1
+                              }
+                            }}
+                            MenuProps={{
+                              PaperProps: {
+                                sx: {
+                                  mt: 0.5,
+                                  borderRadius: 2,
+                                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                                }
+                              }
+                            }}
+                          >
+                            <MenuItem value="Admin" disabled={user.role !== 'Admin'}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {getRoleIcon('Admin')}
+                                <span>Admin</span>
+                              </Box>
+                            </MenuItem>
+                            <MenuItem value="Director">
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {getRoleIcon('Director')}
+                                <span>Director</span>
+                              </Box>
+                            </MenuItem>
+                            <MenuItem value="Driver">
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {getRoleIcon('Driver')}
+                                <span>Driver</span>
+                              </Box>
+                            </MenuItem>
+                            <MenuItem value="Owner">
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                {getRoleIcon('Owner')}
+                                <span>Owner</span>
+                              </Box>
+                            </MenuItem>
+                            <MenuItem value="Customer">
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <span>Customer</span>
+                              </Box>
+                            </MenuItem>
+                          </Select>
+                        </FormControl>
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -356,12 +445,16 @@ const UserManagement = () => {
                           size="small"
                           color={user.is_active ? 'success' : 'default'}
                           onClick={() => {
-                            updateUserMutation.mutate({
+                            updateStatusMutation.mutate({
                               id: user._id,
-                              data: { is_active: !user.is_active }
+                              is_active: !user.is_active
                             });
                           }}
-                          sx={{ cursor: 'pointer' }}
+                          disabled={updateStatusMutation.isLoading}
+                          sx={{ 
+                            cursor: updateStatusMutation.isLoading ? 'not-allowed' : 'pointer',
+                            opacity: updateStatusMutation.isLoading ? 0.6 : 1
+                          }}
                           title={user.is_active ? 'Click to deactivate' : 'Click to activate'}
                         />
                       </TableCell>
@@ -438,23 +531,8 @@ const UserManagement = () => {
         disableAutoFocus={true}
         PaperProps={{
           sx: {
-            zIndex: 1300,
-            position: 'relative',
-            overflow: 'visible',
             borderRadius: 3,
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-            '& .MuiDialogContent-root': {
-              overflow: 'visible'
-            }
-          }
-        }}
-        slotProps={{
-          backdrop: {
-            sx: {
-              zIndex: 1299,
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(4px)'
-            }
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
           }
         }}
       >
@@ -484,33 +562,10 @@ const UserManagement = () => {
             pt: 4, 
             pb: 3,
             px: 3,
-            overflow: 'visible',
-            position: 'relative',
-            backgroundColor: '#fafafa',
-            '&::before': {
-              display: 'none'
-            }
+            backgroundColor: '#fafafa'
           }}
         >
-          <Box sx={{ overflow: 'visible', position: 'relative' }}>
-            {/* DEBUG INFO - Remove after testing */}
-            <Alert 
-              severity="warning" 
-              sx={{ 
-                mb: 2,
-                borderRadius: 2,
-                backgroundColor: '#fff3cd',
-                borderLeft: '4px solid #ffc107',
-                fontSize: '0.75rem'
-              }}
-            >
-              <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
-                <strong>DEBUG:</strong> addDialogOpen={addDialogOpen ? 'true' : 'false'}, 
-                editDialogOpen={editDialogOpen ? 'true' : 'false'}, 
-                selectedUser?.role={selectedUser?.role || 'null'}, 
-                formData.role={formData.role || 'empty'}
-              </Typography>
-            </Alert>
+          <Box>
             {addDialogOpen && (
               <Alert 
                 severity="info" 
@@ -564,272 +619,90 @@ const UserManagement = () => {
                 }
               }}
             />
-            <FormControl 
-              fullWidth 
-              margin="normal" 
-              required 
-              sx={{ 
-                mt: 2,
-                mb: 2
-              }}
-            >
-              <InputLabel 
-                id="role-select-label"
-                shrink={!!formData.role}
-                sx={{
-                  '&.Mui-focused': {
-                    color: '#667eea'
-                  }
+            <Box sx={{ mt: 2, mb: 2 }}>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  mb: 1.5, 
+                  fontWeight: 600, 
+                  color: 'text.primary',
+                  fontSize: '0.875rem'
                 }}
               >
-                Role *
-              </InputLabel>
-              <Select
-                labelId="role-select-label"
-                id="role-select"
+                Role <span style={{ color: '#dc2626' }}>*</span>
+              </Typography>
+              <Box
+                component="select"
                 value={formData.role}
-                onClick={(e) => {
-                  console.log('🟡 Role Select clicked:', {
-                    target: e.target,
-                    currentTarget: e.currentTarget,
-                    addDialogOpen,
-                    editDialogOpen
-                  });
-                  e.stopPropagation();
-                }}
                 onChange={(e) => {
-                  console.log('🔵 Role Select onChange triggered:', {
-                    newValue: e.target.value,
-                    addDialogOpen,
-                    editDialogOpen,
-                    selectedUserRole: selectedUser?.role,
-                    formDataRole: formData.role
-                  });
                   setFormData({ ...formData, role: e.target.value });
                 }}
-                onOpen={() => {
-                  console.log('🟢 Role Select opened:', {
-                    addDialogOpen,
-                    editDialogOpen,
-                    selectedUserRole: selectedUser?.role,
-                    formDataRole: formData.role,
-                    disabled: editDialogOpen && selectedUser?.role === 'Admin'
-                  });
-                }}
-                onClose={() => {
-                  console.log('🔴 Role Select closed');
-                }}
-                label="Role *"
-                displayEmpty
+                required
                 sx={{
-                  borderRadius: 2,
+                  width: '100%',
+                  px: 2,
+                  py: 1.75,
+                  fontSize: '1rem',
+                  fontWeight: 500,
+                  color: formData.role ? 'text.primary' : '#9CA3AF',
                   backgroundColor: 'white',
-                  '& .MuiSelect-select': {
-                    py: 1.5,
-                    display: 'flex',
-                    alignItems: 'center'
-                  },
+                  border: '2px solid',
+                  borderColor: 'rgba(0, 0, 0, 0.23)',
+                  borderRadius: 2,
+                  cursor: 'pointer',
+                  outline: 'none',
+                  transition: 'all 0.2s ease-in-out',
+                  appearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M6 8l4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 0.75rem center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: '1.25em 1.25em',
+                  paddingRight: '3rem',
                   '&:hover': {
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#667eea',
-                      borderWidth: '2px'
-                    }
+                    borderColor: '#667eea',
+                    borderWidth: '2px'
                   },
-                  '&.Mui-focused': {
-                    boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      borderColor: '#667eea',
-                      borderWidth: '2px'
-                    }
+                  '&:focus': {
+                    borderColor: '#667eea',
+                    borderWidth: '2px',
+                    boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                  },
+                  '& option': {
+                    padding: '12px',
+                    fontSize: '1rem',
+                    fontWeight: 500,
+                    color: '#111827'
+                  },
+                  '& option[value=""]': {
+                    color: '#9CA3AF',
+                    fontStyle: 'normal'
                   }
                 }}
-                MenuProps={{
-                  PaperProps: {
-                    sx: {
-                      zIndex: 9999,
-                      mt: 1,
-                      maxHeight: 300,
-                      borderRadius: 2,
-                      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-                      border: '1px solid #e0e0e0',
-                      overflow: 'hidden',
-                      '& .MuiMenuItem-root': {
-                        py: 1.5,
-                        px: 2,
-                        transition: 'all 0.2s ease-in-out',
-                        '&:hover': {
-                          backgroundColor: '#f5f5f5',
-                          transform: 'translateX(4px)'
-                        },
-                        '&.Mui-selected': {
-                          backgroundColor: 'rgba(102, 126, 234, 0.08)',
-                          color: '#667eea',
-                          fontWeight: 600,
-                          '&:hover': {
-                            backgroundColor: 'rgba(102, 126, 234, 0.12)'
-                          }
-                        }
-                      }
-                    }
-                  },
-                  disablePortal: false,
-                  disableScrollLock: true,
-                  style: {
-                    zIndex: 9999
-                  },
-                  anchorOrigin: {
-                    vertical: 'bottom',
-                    horizontal: 'left',
-                  },
-                  transformOrigin: {
-                    vertical: 'top',
-                    horizontal: 'left',
-                  }
-                }}
-                disabled={false}
               >
+                <option value="" disabled>
+                  -- Select a role --
+                </option>
                 {addDialogOpen ? (
                   <>
-                    <MenuItem 
-                      value="" 
-                      disabled
-                      sx={{ 
-                        color: '#9e9e9e',
-                        fontStyle: 'normal',
-                        pointerEvents: 'none'
-                      }}
-                    >
-                      Select a role
-                    </MenuItem>
-                    <MenuItem value="Director">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                        <Box
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <DirectorIcon sx={{ fontSize: 18, color: '#2563eb' }} />
-                        </Box>
-                        <Typography sx={{ fontWeight: 500, fontSize: '0.95rem' }}>Director</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="Driver">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                        <Box
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <DriverIcon sx={{ fontSize: 18, color: '#f59e0b' }} />
-                        </Box>
-                        <Typography sx={{ fontWeight: 500, fontSize: '0.95rem' }}>Driver</Typography>
-                      </Box>
-                    </MenuItem>
+                    <option value="Admin">👑 Admin</option>
+                    <option value="Director">👥 Director</option>
+                    <option value="Driver">🚗 Driver</option>
+                    <option value="Owner">🏢 Owner</option>
+                    <option value="Customer">👤 Customer</option>
                   </>
                 ) : (
                   <>
-                    <MenuItem 
-                      value="" 
-                      disabled
-                      sx={{ 
-                        color: '#9e9e9e',
-                        fontStyle: 'normal',
-                        pointerEvents: 'none'
-                      }}
-                    >
-                      Select a role
-                    </MenuItem>
-                    <MenuItem 
-                      value="Admin" 
-                      disabled={selectedUser?.role !== 'Admin'}
-                    >
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                        <Box
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <AdminIcon sx={{ fontSize: 18, color: '#dc2626' }} />
-                        </Box>
-                        <Typography sx={{ fontWeight: 500, fontSize: '0.95rem' }}>Admin</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="Director">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                        <Box
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <DirectorIcon sx={{ fontSize: 18, color: '#2563eb' }} />
-                        </Box>
-                        <Typography sx={{ fontWeight: 500, fontSize: '0.95rem' }}>Director</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="Driver">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                        <Box
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <DriverIcon sx={{ fontSize: 18, color: '#f59e0b' }} />
-                        </Box>
-                        <Typography sx={{ fontWeight: 500, fontSize: '0.95rem' }}>Driver</Typography>
-                      </Box>
-                    </MenuItem>
-                    <MenuItem value="Owner">
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-                        <Box
-                          sx={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            backgroundColor: 'rgba(22, 163, 74, 0.1)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                        >
-                          <OwnerIcon sx={{ fontSize: 18, color: '#16a34a' }} />
-                        </Box>
-                        <Typography sx={{ fontWeight: 500, fontSize: '0.95rem' }}>Owner</Typography>
-                      </Box>
-                    </MenuItem>
+                    <option value="Admin" disabled={selectedUser?.role !== 'Admin'}>
+                      👑 Admin
+                    </option>
+                    <option value="Director">👥 Director</option>
+                    <option value="Driver">🚗 Driver</option>
+                    <option value="Owner">🏢 Owner</option>
+                    <option value="Customer">👤 Customer</option>
                   </>
                 )}
-              </Select>
-            </FormControl>
+              </Box>
+            </Box>
             <TextField
               fullWidth
               label="Name (Optional)"

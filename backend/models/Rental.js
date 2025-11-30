@@ -106,6 +106,43 @@ const rentalSchema = new mongoose.Schema({
     enum: ['Pending', 'Active', 'Completed', 'Cancelled'],
     default: 'Pending'
   },
+  // Extension tracking
+  is_extended: {
+    type: Boolean,
+    default: false
+  },
+  extension_days: {
+    type: Number,
+    default: 0
+  },
+  extension_amount: {
+    type: Number,
+    default: 0
+  },
+  extension_payment_status: {
+    type: String,
+    enum: ['Pending', 'Paid'],
+    default: 'Paid'
+  },
+  // Dispatch tracking
+  dispatch_date: {
+    type: Date
+  },
+  dispatched_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  // Return tracking
+  return_time: {
+    type: String
+  },
+  receiving_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  actual_return_date: {
+    type: Date
+  },
   handover_data: {
     delivery: {
       date: Date,

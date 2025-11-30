@@ -246,7 +246,7 @@ router.post('/:id/handover', protect, async (req, res) => {
       // Update vehicle status
       const vehicle = await Vehicle.findById(rental.vehicle_ref);
       if (vehicle) {
-        vehicle.availability_status = 'In-Fleet';
+        vehicle.availability_status = 'Parking';
         vehicle.last_odometer_reading = handoverData.odometer_reading;
         await vehicle.save();
       }
@@ -257,6 +257,141 @@ router.post('/:id/handover', protect, async (req, res) => {
     res.json({
       success: true,
       data: rental
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// @route   PUT /api/rentals/:id/extend
+// @desc    Extend rental period
+// @access  Private (Driver, Admin)
+router.put('/:id/extend', protect, async (req, res) => {
+  try {
+    const { extension_days, payment_status, notes } = req.body;
+    const rental = await Rental.findById(req.params.id);
+
+    if (!rental) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rental not found'
+      });
+    }
+
+    // Drivers can only extend their assigned rentals
+    if (req.user.role === 'Driver' && rental.driver_assigned?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to extend this rental'
+      });
+    }
+
+    if (rental.rental_status !== 'Active') {
+      return res.status(400).json({
+        success: false,
+        message: 'Can only extend active rentals'
+      });
+    }
+
+    // Extend end date
+    const currentEndDate = new Date(rental.end_date);
+    currentEndDate.setDate(currentEndDate.getDate() + (extension_days || 0));
+    rental.end_date = currentEndDate;
+    rental.duration_days = rental.duration_days + (extension_days || 0);
+
+    // Update payment status if provided
+    if (payment_status) {
+      rental.payment_status = payment_status;
+    }
+
+    // Add extension note
+    if (notes) {
+      rental.notes = rental.notes ? `${rental.notes}\nExtension: ${notes}` : `Extension: ${notes}`;
+    }
+
+    // Recalculate total fee if needed
+    const vehicle = await Vehicle.findById(rental.vehicle_ref);
+    if (vehicle) {
+      const additionalDays = extension_days || 0;
+      const additionalFee = vehicle.daily_rate * additionalDays;
+      rental.total_fee_gross = (rental.total_fee_gross || 0) + additionalFee;
+    }
+
+    await rental.save();
+
+    res.json({
+      success: true,
+      data: rental,
+      message: `Rental extended by ${extension_days} days`
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// @route   PUT /api/rentals/:id/return
+// @desc    Mark vehicle as returned
+// @access  Private (Driver, Admin)
+router.put('/:id/return', protect, async (req, res) => {
+  try {
+    const { payment_status, notes } = req.body;
+    const rental = await Rental.findById(req.params.id);
+
+    if (!rental) {
+      return res.status(404).json({
+        success: false,
+        message: 'Rental not found'
+      });
+    }
+
+    // Drivers can only return their assigned rentals
+    if (req.user.role === 'Driver' && rental.driver_assigned?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to return this rental'
+      });
+    }
+
+    if (rental.rental_status === 'Completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Rental is already completed'
+      });
+    }
+
+    // Mark as completed
+    rental.rental_status = 'Completed';
+    rental.actual_end_date = new Date();
+
+    // Update payment status if provided
+    if (payment_status) {
+      rental.payment_status = payment_status;
+    }
+
+    // Add return note
+    if (notes) {
+      rental.notes = rental.notes ? `${rental.notes}\nReturn: ${notes}` : `Return: ${notes}`;
+    }
+
+    // Update vehicle status
+    const vehicle = await Vehicle.findById(rental.vehicle_ref);
+    if (vehicle) {
+      vehicle.availability_status = 'Parking';
+      await vehicle.save();
+    }
+
+    await rental.save();
+
+    res.json({
+      success: true,
+      data: rental,
+      message: 'Vehicle marked as returned successfully'
     });
   } catch (error) {
     res.status(500).json({

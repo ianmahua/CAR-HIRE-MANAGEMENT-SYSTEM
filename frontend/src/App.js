@@ -7,6 +7,7 @@ import 'react-toastify/dist/ReactToastify.css';
 
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Login from './pages/Login';
+import AuthCallback from './pages/AuthCallback';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -44,6 +45,7 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={!user ? <Login /> : <Navigate to={`/${user.role.toLowerCase()}`} replace />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       

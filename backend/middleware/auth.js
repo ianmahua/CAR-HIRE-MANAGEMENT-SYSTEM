@@ -37,9 +37,12 @@ exports.protect = async (req, res, next) => {
         });
       }
 
-      // Update last login
-      req.user.last_login = new Date();
-      await req.user.save();
+      // Update last login (only if it's been more than 1 hour since last update)
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      if (!req.user.last_login || req.user.last_login < oneHourAgo) {
+        req.user.last_login = new Date();
+        await req.user.save();
+      }
 
       next();
     } catch (error) {

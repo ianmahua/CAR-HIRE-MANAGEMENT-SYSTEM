@@ -73,7 +73,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/contracts', contractRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/director', directorRoutes);
-app.use('/api/driver', driverRoutes);
+app.use('/api', driverRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api/mpesa', mpesaRoutes);
 app.use('/api/reports', reportRoutes);

@@ -11,43 +11,17 @@ const roleMapping = require('../config/roleMapping');
 const { sendPasswordResetEmail, sendUserInvitationEmail } = require('../services/emailService');
 
 // Configure Passport Google Strategy
+// Simply pass the profile to the callback route - user creation happens there
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: process.env.GOOGLE_CALLBACK_URL || '/api/auth/google/callback'
 }, async (accessToken, refreshToken, profile, done) => {
   try {
-    const { id, emails, displayName, photos } = profile;
-    const email = emails[0].value;
-    
-    // Find or create user
-    let user = await User.findOne({ 
-      $or: [{ email }, { google_id: id }] 
-    });
-    
-    if (user) {
-      // Link Google account if not already linked
-      if (!user.google_id) {
-        user.google_id = id;
-        await user.save();
-      }
-      return done(null, user);
-    }
-    
-    // Get role from mapping
-    const role = roleMapping.getRoleFromEmail(email) || 'Driver';
-    
-    // Create new user
-    user = await User.create({
-      email,
-      name: displayName || email.split('@')[0],
-      google_id: id,
-      role,
-      is_active: true
-    });
-    
-    return done(null, user);
+    // Pass profile data to callback route for processing
+    return done(null, profile);
   } catch (error) {
+    console.error('Google OAuth error:', error);
     return done(error, null);
   }
 }));
@@ -219,81 +193,68 @@ router.get('/google',
 );
 
 // @route   GET /api/auth/google/callback
-// @desc    Google OAuth callback
+// @desc    Google OAuth callback - Standard OAuth flow
 // @access  Public
 router.get('/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/login?error=google_auth_failed` }),
+  passport.authenticate('google', { session: false, failureRedirect: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/login?error=oauth_failed` }),
   async (req, res) => {
     try {
-      const user = req.user;
+      const profile = req.user;
+      const { id, emails, displayName, photos } = profile;
+      const email = emails[0].value;
+      const profilePicture = photos && photos[0] ? photos[0].value : null;
       
-      // Send user data to frontend for role selection
-      const userData = {
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        google_id: user.google_id
-      };
+      // Check if user exists by email or google_id
+      let user = await User.findOne({ 
+        $or: [{ email }, { google_id: id }] 
+      });
       
-      // Redirect to frontend with user data
-      const redirectUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/login?google_auth=true&email=${encodeURIComponent(user.email)}&name=${encodeURIComponent(user.name)}&role=${encodeURIComponent(user.role)}`;
-      res.redirect(redirectUrl);
+      if (user) {
+        // EXISTING USER - Update Google info
+        if (!user.google_id) {
+          user.google_id = id;
+        }
+        if (displayName && user.name !== displayName) {
+          user.name = displayName;
+        }
+        if (profilePicture) {
+          user.profile_picture = profilePicture;
+        }
+        user.last_login = new Date();
+        user.updated_at = new Date();
+        await user.save();
+      } else {
+        // NEW USER - Create with DEFAULT Customer role
+        user = await User.create({
+          email,
+          name: displayName || email.split('@')[0],
+          google_id: id,
+          role: 'Customer', // Default role for new OAuth users
+          profile_picture: profilePicture,
+          is_active: true,
+          last_login: new Date()
+        });
+      }
+      
+      // Check if user is active
+      if (!user.is_active) {
+        return res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3001'}/login?error=account_inactive`);
+      }
+      
+      // Generate JWT token
+      const token = generateToken(user);
+      
+      // Redirect to frontend callback with token
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3001'}/auth/callback?token=${token}`);
+      
     } catch (error) {
-      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3001'}/login?error=google_auth_error`);
+      console.error('OAuth callback error:', error);
+      res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3001'}/login?error=oauth_failed`);
     }
   }
 );
 
-// @route   POST /api/auth/google/verify-role
-// @desc    Verify role and generate JWT for Google OAuth users
-// @access  Public
-router.post('/google/verify-role', async (req, res) => {
-  try {
-    const { email, role } = req.body;
-    
-    const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-    
-    // Validate role
-    if (user.role !== role) {
-      return res.status(401).json({
-        success: false,
-        message: `Invalid role. Your account is registered as ${user.role}`
-      });
-    }
-    
-    if (!user.is_active) {
-      return res.status(401).json({
-        success: false,
-        message: 'Account is inactive'
-      });
-    }
-    
-    const token = generateToken(user);
-    
-    res.json({
-      success: true,
-      token,
-      data: {
-        user_id: user.user_id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone_msisdn: user.phone_msisdn
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-});
+// Removed /google/verify-role endpoint - no longer needed with standard OAuth flow
 
 // @route   POST /api/auth/forgot-password
 // @desc    Request password reset
@@ -370,11 +331,11 @@ router.post('/reset-password', async (req, res) => {
       });
     }
     
-    // Set new password
-    const bcrypt = require('bcryptjs');
-    user.password_hash = password; // Will be hashed by pre-save hook
+    // Set new password (will be hashed by pre-save hook)
+    user.password_hash = password;
     user.password_reset_token = undefined;
     user.password_reset_expires = undefined;
+    user.updated_at = new Date();
     await user.save();
     
     res.json({
@@ -407,12 +368,76 @@ router.get('/me', protect, async (req, res) => {
   }
 });
 
+// @route   PUT /api/auth/profile
+// @desc    Update user profile (display name)
+// @access  Private
+router.put('/profile', protect, async (req, res) => {
+  try {
+    const { display_name } = req.body;
+    
+    console.log('Profile update request:', { display_name, userId: req.user._id });
+    
+    if (!display_name || !display_name.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Display name is required'
+      });
+    }
+    
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Mark display_name as modified to ensure it's saved
+    user.display_name = display_name.trim();
+    user.markModified('display_name');
+    user.updated_at = new Date();
+    
+    try {
+      const savedUser = await user.save();
+      console.log('User saved successfully:', savedUser.display_name);
+      
+      // Return user without password_hash
+      const userObj = savedUser.toObject();
+      delete userObj.password_hash;
+      
+      res.json({
+        success: true,
+        data: userObj
+      });
+    } catch (saveError) {
+      console.error('Error saving user:', saveError);
+      console.error('Save error details:', {
+        message: saveError.message,
+        name: saveError.name,
+        errors: saveError.errors
+      });
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save display name: ' + (saveError.message || 'Unknown error')
+      });
+    }
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update profile'
+    });
+  }
+});
+    
+
 // @route   PUT /api/auth/update-profile
 // @desc    Update user profile
 // @access  Private
 router.put('/update-profile', protect, async (req, res) => {
   try {
-    const { name, email, phone_msisdn, payout_account_details } = req.body;
+    const { name, email, phone_msisdn, payout_account_details, display_name } = req.body;
     
     const user = await User.findById(req.user._id);
     
@@ -420,7 +445,9 @@ router.put('/update-profile', protect, async (req, res) => {
     if (email) user.email = email;
     if (phone_msisdn) user.phone_msisdn = phone_msisdn;
     if (payout_account_details) user.payout_account_details = payout_account_details;
+    if (display_name) user.display_name = display_name.trim();
     
+    user.updated_at = new Date();
     await user.save();
     
     res.json({

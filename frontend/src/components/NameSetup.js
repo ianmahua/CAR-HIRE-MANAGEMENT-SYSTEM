@@ -7,31 +7,57 @@ import {
   TextField,
   Button,
   Typography,
-  Box
+  Box,
+  Alert
 } from '@mui/material';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { toast } from 'react-toastify';
 
 const NameSetup = ({ open, onClose }) => {
   const { user, setUser } = useAuth();
   const [displayName, setDisplayName] = useState(user?.display_name || user?.name || '');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (open && user) {
+      setDisplayName(user?.display_name || user?.name || '');
+      setError('');
+    }
+  }, [open, user]);
 
   const handleSave = async () => {
     if (!displayName.trim()) {
+      setError('Display name cannot be empty');
       return;
     }
 
     setLoading(true);
+    setError('');
     try {
+      console.log('Sending request to update display name:', displayName.trim());
       const response = await api.put('/api/auth/profile', {
         display_name: displayName.trim()
       });
       
-      setUser(response.data.data);
-      onClose();
+      console.log('Response received:', response.data);
+      
+      if (response.data.success) {
+        setUser(response.data.data);
+        toast.success('Display name saved successfully!');
+        onClose();
+      } else {
+        const errorMsg = response.data.message || 'Failed to save display name';
+        setError(errorMsg);
+        toast.error(errorMsg);
+      }
     } catch (error) {
       console.error('Error updating display name:', error);
+      console.error('Error response:', error.response);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to save display name. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -49,13 +75,23 @@ const NameSetup = ({ open, onClose }) => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Enter the name you'd like to be greeted with when you log in.
           </Typography>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
           <TextField
             fullWidth
             label="Display Name"
             value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
+            onChange={(e) => {
+              setDisplayName(e.target.value);
+              setError('');
+            }}
             placeholder={user?.name}
             autoFocus
+            error={!!error}
+            disabled={loading}
             sx={{
               '& .MuiOutlinedInput-root': {
                 '&:hover fieldset': {

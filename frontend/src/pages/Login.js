@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import api from '../utils/api';
 import {
   Container,
   Paper,
@@ -15,10 +14,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   Divider,
   Avatar,
   Fade
@@ -42,105 +37,29 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('');
   const [loading, setLoading] = useState(false);
-  const [googleRoleDialogOpen, setGoogleRoleDialogOpen] = useState(false);
-  const [googleUserData, setGoogleUserData] = useState(null);
-  const { login, setUserFromToken } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  // Check for Google OAuth callback
+  // Check for errors in URL params
   useEffect(() => {
-    const googleAuth = searchParams.get('google_auth');
-    const googleEmail = searchParams.get('email');
-    const googleName = searchParams.get('name');
-    const googleRole = searchParams.get('role');
     const error = searchParams.get('error');
-
     if (error) {
-      toast.error('Google authentication failed. Please try again.');
-      return;
-    }
-
-    if (googleAuth === 'true' && googleEmail) {
-      setGoogleUserData({
-        email: googleEmail,
-        name: googleName || googleEmail.split('@')[0],
-        role: googleRole || ''
-      });
-      setGoogleRoleDialogOpen(true);
+      if (error === 'oauth_failed') {
+        toast.error('Google authentication failed. Please try again.');
+      } else if (error === 'account_inactive') {
+        toast.error('Your account is inactive. Please contact administrator.');
+      } else {
+        toast.error('Authentication failed. Please try again.');
+      }
+      // Clear error from URL
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [searchParams]);
 
+  // Simple Google OAuth redirect - no role selection
   const handleGoogleSignIn = () => {
     window.location.href = `${process.env.REACT_APP_API_URL || 'http://localhost:5000'}/api/auth/google`;
-  };
-
-  const handleGoogleRoleSubmit = async () => {
-    if (!role) {
-      toast.error('Please select your role');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      console.log('Verifying Google role:', { email: googleUserData.email, role });
-      
-      const response = await api.post('/api/auth/google/verify-role', {
-        email: googleUserData.email,
-        role: role
-      });
-
-      console.log('Google role verification response:', response.data);
-
-      if (response.data.success) {
-        const { token, data: userData } = response.data;
-        
-        console.log('Login successful, user data:', userData);
-        
-        // Store token
-        localStorage.setItem('token', token);
-        
-        // Update axios defaults for api instance
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        
-        // Also update main axios instance
-        const axios = require('axios').default;
-        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        
-        // Update auth context if setUserFromToken is available
-        if (setUserFromToken) {
-          try {
-            await setUserFromToken(token);
-            console.log('Auth context updated successfully');
-          } catch (err) {
-            console.error('Error updating auth context:', err);
-            // Continue anyway - token is set
-          }
-        }
-        
-        toast.success('Login successful! Redirecting...');
-        
-        // Use window.location for full page reload to ensure auth state is fresh
-        setTimeout(() => {
-          window.location.href = `/${userData.role.toLowerCase()}`;
-        }, 300);
-      } else {
-        console.error('Login failed:', response.data.message);
-        toast.error(response.data.message || 'Authentication failed');
-      }
-    } catch (error) {
-      console.error('Google role verification error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status
-      });
-      const errorMessage = error.response?.data?.message || error.message || 'Authentication failed. Please try again.';
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-      setGoogleRoleDialogOpen(false);
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -248,52 +167,6 @@ const Login = () => {
               </Typography>
             </Box>
 
-            {/* Google Sign-In Button */}
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={handleGoogleSignIn}
-              startIcon={<GoogleLogo />}
-              sx={{
-                mb: 3,
-                py: 1.5,
-                borderRadius: 2,
-                borderColor: '#dadce0',
-                color: '#3c4043',
-                textTransform: 'none',
-                fontSize: '15px',
-                fontWeight: 500,
-                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)',
-                transition: 'all 0.2s ease-in-out',
-                '&:hover': {
-                  borderColor: '#dadce0',
-                  backgroundColor: '#f8f9fa',
-                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)',
-                  transform: 'translateY(-1px)'
-                },
-                '&:active': {
-                  transform: 'translateY(0)',
-                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
-                }
-              }}
-            >
-              Continue with Google
-            </Button>
-
-            <Divider sx={{ my: 4, position: 'relative' }}>
-              <Typography
-                variant="body2"
-                sx={{
-                  px: 2,
-                  bgcolor: 'rgba(255, 255, 255, 0.98)',
-                  color: 'text.secondary',
-                  fontWeight: 500
-                }}
-              >
-                OR
-              </Typography>
-            </Divider>
-
             {/* Email/Password Form */}
             <form onSubmit={handleSubmit}>
               <TextField
@@ -305,9 +178,10 @@ const Login = () => {
                 margin="normal"
                 required
                 autoComplete="email"
+                disabled={loading}
                 InputProps={{
                   startAdornment: (
-                    <Box sx={{ mr: 1, display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
+                    <Box sx={{ mr: 1.5, display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
                       <EmailIcon fontSize="small" />
                     </Box>
                   )
@@ -315,14 +189,25 @@ const Login = () => {
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 2,
-                    transition: 'all 0.2s ease-in-out',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    backgroundColor: 'white',
                     '&:hover': {
                       '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'primary.main'
+                        borderColor: 'primary.main',
+                        borderWidth: '2px'
                       }
                     },
                     '&.Mui-focused': {
-                      boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                      boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: 'primary.main',
+                        borderWidth: '2px'
+                      }
+                    }
+                  },
+                  '& .MuiInputLabel-root': {
+                    '&.Mui-focused': {
+                      color: 'primary.main'
                     }
                   }
                 }}
@@ -336,9 +221,10 @@ const Login = () => {
                 margin="normal"
                 required
                 autoComplete="current-password"
+                disabled={loading}
                 InputProps={{
                   startAdornment: (
-                    <Box sx={{ mr: 1, display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
+                    <Box sx={{ mr: 1.5, display: 'flex', alignItems: 'center', color: 'text.secondary' }}>
                       <LockIcon fontSize="small" />
                     </Box>
                   )
@@ -346,49 +232,13 @@ const Login = () => {
                 sx={{
                   '& .MuiOutlinedInput-root': {
                     borderRadius: 2,
-                    transition: 'all 0.2s ease-in-out',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    backgroundColor: 'white',
                     '&:hover': {
                       '& .MuiOutlinedInput-notchedOutline': {
-                        borderColor: 'primary.main'
+                        borderColor: 'primary.main',
+                        borderWidth: '2px'
                       }
-                    },
-                    '&.Mui-focused': {
-                      boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
-                    }
-                  }
-                }}
-              />
-              <FormControl fullWidth margin="normal" required>
-                <InputLabel 
-                  id="role-select-label"
-                  sx={{
-                    color: 'text.primary',
-                    '&.Mui-focused': {
-                      color: 'primary.main'
-                    }
-                  }}
-                >
-                  Role *
-                </InputLabel>
-                <Select
-                  labelId="role-select-label"
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  label="Role *"
-                  displayEmpty
-                  sx={{
-                    borderRadius: 2,
-                    backgroundColor: 'white',
-                    '& .MuiSelect-select': {
-                      color: role ? 'text.primary' : 'text.secondary',
-                      fontWeight: role ? 500 : 400
-                    },
-                    '& .MuiOutlinedInput-notchedOutline': {
-                      transition: 'all 0.2s ease-in-out',
-                      borderColor: 'rgba(0, 0, 0, 0.23)'
-                    },
-                    '&:hover .MuiOutlinedInput-notchedOutline': {
-                      borderColor: 'primary.main'
                     },
                     '&.Mui-focused': {
                       boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
@@ -397,24 +247,83 @@ const Login = () => {
                         borderWidth: '2px'
                       }
                     }
+                  },
+                  '& .MuiInputLabel-root': {
+                    '&.Mui-focused': {
+                      color: 'primary.main'
+                    }
+                  }
+                }}
+              />
+              <FormControl fullWidth margin="normal" required>
+                <Select
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  displayEmpty
+                  disabled={loading}
+                  sx={{
+                    borderRadius: 2,
+                    backgroundColor: 'white',
+                    height: '56px',
+                    '& .MuiSelect-select': {
+                      color: role ? 'text.primary' : '#9e9e9e',
+                      fontWeight: role ? 500 : 400,
+                      fontSize: '15px',
+                      padding: '16.5px 14px',
+                      '&:focus': {
+                        backgroundColor: 'transparent'
+                      }
+                    },
+                    '& .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'rgba(0, 0, 0, 0.23)',
+                      borderWidth: '1px'
+                    },
+                    '&:hover .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main'
+                    },
+                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+                      borderColor: 'primary.main',
+                      borderWidth: '2px'
+                    },
+                    '&.Mui-focused': {
+                      boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)'
+                    }
                   }}
                   MenuProps={{
                     PaperProps: {
                       sx: {
                         borderRadius: 2,
-                        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-                        mt: 1
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                        mt: 1,
+                        '& .MuiMenuItem-root': {
+                          fontSize: '15px',
+                          py: 1.5,
+                          '&:hover': {
+                            backgroundColor: 'rgba(102, 126, 234, 0.08)'
+                          },
+                          '&.Mui-selected': {
+                            backgroundColor: 'rgba(102, 126, 234, 0.12)',
+                            color: 'primary.main',
+                            fontWeight: 600,
+                            '&:hover': {
+                              backgroundColor: 'rgba(102, 126, 234, 0.16)'
+                            }
+                          }
+                        }
                       }
                     }
                   }}
+                  renderValue={(selected) => {
+                    if (!selected) {
+                      return <span style={{ color: '#9e9e9e' }}>Select Your Role</span>;
+                    }
+                    return selected;
+                  }}
                 >
-                  <MenuItem value="" disabled>
-                    <em style={{ color: '#9e9e9e', fontStyle: 'normal' }}>Select your role</em>
-                  </MenuItem>
-                  <MenuItem value="Admin" sx={{ py: 1.5, fontWeight: 500 }}>Admin</MenuItem>
-                  <MenuItem value="Director" sx={{ py: 1.5, fontWeight: 500 }}>Director</MenuItem>
-                  <MenuItem value="Driver" sx={{ py: 1.5, fontWeight: 500 }}>Driver</MenuItem>
-                  <MenuItem value="Owner" sx={{ py: 1.5, fontWeight: 500 }}>Owner</MenuItem>
+                  <MenuItem value="Admin">Admin</MenuItem>
+                  <MenuItem value="Director">Director</MenuItem>
+                  <MenuItem value="Driver">Driver</MenuItem>
+                  <MenuItem value="Owner">Owner</MenuItem>
                 </Select>
               </FormControl>
               <Button
@@ -431,23 +340,34 @@ const Login = () => {
                   fontSize: '16px',
                   fontWeight: 600,
                   boxShadow: '0 4px 14px rgba(102, 126, 234, 0.4)',
-                  transition: 'all 0.3s ease-in-out',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative',
+                  overflow: 'hidden',
                   '&:hover': {
                     background: 'linear-gradient(135deg, #5568d3 0%, #6a3d8f 100%)',
-                    boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)',
+                    boxShadow: '0 8px 24px rgba(102, 126, 234, 0.5)',
                     transform: 'translateY(-2px)'
                   },
                   '&:active': {
-                    transform: 'translateY(0)'
+                    transform: 'translateY(0)',
+                    boxShadow: '0 4px 14px rgba(102, 126, 234, 0.4)'
                   },
                   '&:disabled': {
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    opacity: 0.7
+                    opacity: 0.7,
+                    cursor: 'not-allowed'
                   }
                 }}
                 disabled={loading}
               >
-                {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign In'}
+                {loading ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={20} sx={{ color: 'white' }} />
+                    <span>Signing in...</span>
+                  </Box>
+                ) : (
+                  'Sign In'
+                )}
               </Button>
             </form>
 
@@ -473,129 +393,63 @@ const Login = () => {
                 </Typography>
               </Link>
             </Box>
+
+            <Divider sx={{ my: 4, position: 'relative' }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  px: 2,
+                  bgcolor: 'rgba(255, 255, 255, 0.98)',
+                  color: 'text.secondary',
+                  fontWeight: 500,
+                  fontSize: '13px',
+                  letterSpacing: '0.5px'
+                }}
+              >
+                OR
+              </Typography>
+            </Divider>
+
+            {/* Google Sign-In Button */}
+            <Button
+              fullWidth
+              variant="outlined"
+              onClick={handleGoogleSignIn}
+              startIcon={<GoogleLogo />}
+              disabled={loading}
+              sx={{
+                mb: 2,
+                py: 1.5,
+                borderRadius: 2,
+                borderColor: '#dadce0',
+                color: '#3c4043',
+                textTransform: 'none',
+                fontSize: '15px',
+                fontWeight: 500,
+                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                '&:hover': {
+                  borderColor: '#dadce0',
+                  backgroundColor: '#f8f9fa',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                  transform: 'translateY(-2px)'
+                },
+                '&:active': {
+                  transform: 'translateY(0)',
+                  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)'
+                },
+                '&:disabled': {
+                  opacity: 0.6,
+                  cursor: 'not-allowed'
+                }
+              }}
+            >
+              Continue with Google
+            </Button>
           </Paper>
         </Fade>
       </Container>
 
-      {/* Google Role Selection Dialog */}
-      <Dialog
-        open={googleRoleDialogOpen}
-        onClose={() => setGoogleRoleDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
-          }
-        }}
-      >
-        <DialogTitle sx={{ pb: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Select Your Role
-          </Typography>
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mb: 3, textAlign: 'center' }}>
-            <Avatar
-              sx={{
-                width: 56,
-                height: 56,
-                mx: 'auto',
-                mb: 2,
-                bgcolor: 'primary.main'
-              }}
-            >
-              {googleUserData?.name?.charAt(0).toUpperCase()}
-            </Avatar>
-            <Typography variant="body1" sx={{ fontWeight: 500, mb: 0.5 }}>
-              Welcome, <strong>{googleUserData?.name}</strong>!
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Please select your role to continue
-            </Typography>
-          </Box>
-          <FormControl fullWidth>
-            <InputLabel 
-              id="google-role-select-label"
-              sx={{
-                color: 'text.primary',
-                '&.Mui-focused': {
-                  color: 'primary.main'
-                }
-              }}
-            >
-              Role
-            </InputLabel>
-            <Select
-              labelId="google-role-select-label"
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              label="Role"
-              displayEmpty
-              sx={{
-                borderRadius: 2,
-                backgroundColor: 'white',
-                '& .MuiSelect-select': {
-                  color: role ? 'text.primary' : 'text.secondary',
-                  fontWeight: role ? 500 : 400
-                },
-                '&.Mui-focused': {
-                  boxShadow: '0 0 0 3px rgba(102, 126, 234, 0.1)',
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'primary.main',
-                    borderWidth: '2px'
-                  }
-                }
-              }}
-              MenuProps={{
-                PaperProps: {
-                  sx: {
-                    borderRadius: 2,
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-                    mt: 1
-                  }
-                }
-              }}
-            >
-              <MenuItem value="" disabled>
-                <em style={{ color: '#9e9e9e', fontStyle: 'normal' }}>Select your role</em>
-              </MenuItem>
-              <MenuItem value="Admin" sx={{ py: 1.5, fontWeight: 500 }}>Admin</MenuItem>
-              <MenuItem value="Director" sx={{ py: 1.5, fontWeight: 500 }}>Director</MenuItem>
-              <MenuItem value="Driver" sx={{ py: 1.5, fontWeight: 500 }}>Driver</MenuItem>
-              <MenuItem value="Owner" sx={{ py: 1.5, fontWeight: 500 }}>Owner</MenuItem>
-            </Select>
-          </FormControl>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2.5 }}>
-          <Button
-            onClick={() => setGoogleRoleDialogOpen(false)}
-            sx={{ textTransform: 'none', fontWeight: 500 }}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={handleGoogleRoleSubmit}
-            variant="contained"
-            disabled={!role || loading}
-            sx={{
-              textTransform: 'none',
-              fontWeight: 600,
-              borderRadius: 2,
-              px: 3,
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              boxShadow: '0 4px 14px rgba(102, 126, 234, 0.4)',
-              '&:hover': {
-                background: 'linear-gradient(135deg, #5568d3 0%, #6a3d8f 100%)',
-                boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)'
-              }
-            }}
-          >
-            {loading ? <CircularProgress size={20} color="inherit" /> : 'Continue'}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

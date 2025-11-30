@@ -63,7 +63,16 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Login failed';
+      let errorMessage = 'Login failed';
+      
+      if (error.code === 'ECONNREFUSED' || error.message.includes('Network Error') || !error.response) {
+        errorMessage = 'Cannot connect to server. Please ensure the backend server is running on http://localhost:5000';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       return {
         success: false,
         message: errorMessage

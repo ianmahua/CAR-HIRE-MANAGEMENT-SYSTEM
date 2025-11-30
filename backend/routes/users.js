@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
 const { sendUserInvitationEmail } = require('../services/emailService');
@@ -78,10 +79,12 @@ router.post('/', protect, authorize('Admin'), async (req, res) => {
       });
     }
 
-    if (role !== 'Director' && role !== 'Driver') {
+    // Validate role
+    const validRoles = ['Admin', 'Director', 'Driver', 'Owner', 'Customer'];
+    if (!validRoles.includes(role)) {
       return res.status(400).json({
         success: false,
-        message: 'Only Director or Driver roles can be assigned'
+        message: `Invalid role. Must be one of: ${validRoles.join(', ')}`
       });
     }
 
@@ -91,10 +94,25 @@ router.post('/', protect, authorize('Admin'), async (req, res) => {
     if (existingUser) {
       // If user exists but is inactive, reactivate and update
       if (!existingUser.is_active) {
+        // Generate new password reset token for reactivated user
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+        
         existingUser.is_active = true;
         existingUser.role = role;
         if (name) existingUser.name = name;
+        existingUser.password_reset_token = hashedToken;
+        existingUser.password_reset_expires = Date.now() + 7 * 24 * 3600000; // 7 days
         await existingUser.save();
+        
+        // Send invitation email with reset link
+        try {
+          const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/reset-password?token=${resetToken}`;
+          await sendUserInvitationEmail(email, role, resetUrl);
+        } catch (emailError) {
+          console.error('Error sending invitation email:', emailError);
+        }
+        
         return res.json({
           success: true,
           data: existingUser
@@ -106,17 +124,24 @@ router.post('/', protect, authorize('Admin'), async (req, res) => {
       });
     }
 
+    // Generate password reset token for new user
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    
     // Create new user (password will be null initially)
     const user = await User.create({
       email,
       role,
-      name: name || email.split('@')[0]
+      name: name || email.split('@')[0],
+      password_reset_token: hashedToken,
+      password_reset_expires: Date.now() + 7 * 24 * 3600000 // 7 days for new users
       // phone_msisdn and password_hash are optional - user will set them later
     });
 
-    // Send invitation email
+    // Send invitation email with reset link
     try {
-      await sendUserInvitationEmail(email, role);
+      const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/reset-password?token=${resetToken}`;
+      await sendUserInvitationEmail(email, role, resetUrl);
     } catch (emailError) {
       console.error('Error sending invitation email:', emailError);
       // Don't fail user creation if email fails
@@ -130,6 +155,132 @@ router.post('/', protect, authorize('Admin'), async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message
+    });
+  }
+});
+
+// @route   PATCH /api/users/:id/role
+// @desc    Update user role (Admin only)
+// @access  Private (Admin)
+router.patch('/:id/role', protect, authorize('Admin'), async (req, res) => {
+  try {
+    const { role } = req.body;
+
+    // Validate role
+    const validRoles = ['Admin', 'Director', 'Driver', 'Owner', 'Customer'];
+    if (!role || !validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid role. Must be one of: ${validRoles.join(', ')}`
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Prevent users from changing their own role
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You cannot change your own role'
+      });
+    }
+
+    // Prevent changing Admin role
+    if (user.role === 'Admin' && role !== 'Admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot change Admin role'
+      });
+    }
+
+    // Update role
+    user.role = role;
+    user.updated_at = new Date();
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'User role updated successfully',
+      data: {
+        _id: user._id,
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        is_active: user.is_active
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user role',
+      error: error.message
+    });
+  }
+});
+
+// @route   PATCH /api/users/:id/status
+// @desc    Update user status (Activate/Deactivate) (Admin only)
+// @access  Private (Admin)
+router.patch('/:id/status', protect, authorize('Admin'), async (req, res) => {
+  try {
+    const { is_active } = req.body;
+
+    if (typeof is_active !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        message: 'is_active must be a boolean value'
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Prevent users from deactivating themselves
+    if (user._id.toString() === req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'You cannot deactivate your own account'
+      });
+    }
+
+    // Update status
+    user.is_active = is_active;
+    user.updated_at = new Date();
+    await user.save();
+
+    res.json({
+      success: true,
+      message: `User ${is_active ? 'activated' : 'deactivated'} successfully`,
+      data: {
+        _id: user._id,
+        user_id: user.user_id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        is_active: user.is_active
+      }
+    });
+  } catch (error) {
+    console.error('Error updating user status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update user status',
+      error: error.message
     });
   }
 });
@@ -164,6 +315,7 @@ router.put('/:id', protect, authorize('Admin'), async (req, res) => {
     if (phone_msisdn) user.phone_msisdn = phone_msisdn;
     if (is_active !== undefined) user.is_active = is_active;
 
+    user.updated_at = new Date();
     await user.save();
 
     res.json({

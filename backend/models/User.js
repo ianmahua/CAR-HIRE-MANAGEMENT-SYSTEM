@@ -13,9 +13,14 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Name is required'],
     trim: true
   },
+  display_name: {
+    type: String,
+    trim: true
+  },
   role: {
     type: String,
-    enum: ['Director', 'Admin', 'Driver', 'Owner'],
+    enum: ['Director', 'Admin', 'Driver', 'Owner', 'Customer'],
+    default: 'Customer',
     required: [true, 'Role is required']
   },
   email: {
@@ -44,6 +49,9 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true
+  },
+  profile_picture: {
+    type: String
   },
   password_hash: {
     type: String,

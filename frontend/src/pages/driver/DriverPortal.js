@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Car, Users, History, Calendar, Bell, Settings, 
-  LogOut, Menu, X, Plus
+  LogOut, Menu, X, Plus, User, CheckCircle, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -23,104 +23,163 @@ import ReturnVehicleModal from '../../components/dialogs/ReturnVehicleModal';
 import ExtendRentalModal from '../../components/dialogs/ExtendRentalModal';
 import CustomerInfoModal from '../../components/dialogs/CustomerInfoModal';
 import CreateBookingModal from '../../components/dialogs/CreateBookingModal';
+import ProfilePictureDialog from '../../components/dialogs/ProfilePictureDialog';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 // Notification Automation Logic
-const generateNotifications = (rentals, bookings) => {
+const generateNotifications = (rentals = [], bookings = []) => {
   const notifications = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Check for returns due
-  rentals.forEach(rental => {
-    if (rental.rental_status === 'Active' && rental.end_date) {
-      const returnDate = new Date(rental.end_date);
-      returnDate.setHours(0, 0, 0, 0);
-      const daysUntil = Math.ceil((returnDate - today) / (1000 * 60 * 60 * 24));
+  // Ensure rentals and bookings are arrays
+  const rentalsArray = Array.isArray(rentals) ? rentals : [];
+  const bookingsArray = Array.isArray(bookings) ? bookings : [];
 
-      if (daysUntil < 0) {
-        notifications.push({
-          type: 'critical',
-          title: 'Overdue Return',
-          message: `${rental.vehicle_ref?.license_plate || 'Vehicle'} is overdue for return`,
-          timestamp: new Date(),
-          rental_id: rental._id
-        });
-      } else if (daysUntil === 0) {
-        notifications.push({
-          type: 'warning',
-          title: 'Return Due Today',
-          message: `${rental.vehicle_ref?.license_plate || 'Vehicle'} is due for return today`,
-          timestamp: new Date(),
-          rental_id: rental._id
-        });
-      } else if (daysUntil === 1) {
-        notifications.push({
-          type: 'warning',
-          title: 'Return Due Tomorrow',
-          message: `${rental.vehicle_ref?.license_plate || 'Vehicle'} is due for return tomorrow`,
-          timestamp: new Date(),
-          rental_id: rental._id
-        });
+  // Check for returns due
+  rentalsArray.forEach(rental => {
+    if (!rental) return;
+    
+    if (rental.rental_status === 'Active' && rental.end_date) {
+      try {
+        const returnDate = new Date(rental.end_date);
+        if (isNaN(returnDate.getTime())) return; // Invalid date
+        
+        returnDate.setHours(0, 0, 0, 0);
+        const daysUntil = Math.ceil((returnDate - today) / (1000 * 60 * 60 * 24));
+
+        const vehicleInfo = rental.vehicle_ref?.license_plate || 
+          (rental.vehicle_ref?.make && rental.vehicle_ref?.model 
+            ? `${rental.vehicle_ref.make} ${rental.vehicle_ref.model}` 
+            : 'Vehicle');
+
+        if (daysUntil < 0) {
+          notifications.push({
+            type: 'critical',
+            title: 'Overdue Return',
+            message: `${vehicleInfo} is overdue for return`,
+            description: `Return was due ${Math.abs(daysUntil)} day${Math.abs(daysUntil) > 1 ? 's' : ''} ago`,
+            timestamp: new Date(),
+            rental_id: rental._id || rental.rental_id
+          });
+        } else if (daysUntil === 0) {
+          notifications.push({
+            type: 'warning',
+            title: 'Return Due Today',
+            message: `${vehicleInfo} is due for return today`,
+            description: rental.customer_ref?.name ? `Customer: ${rental.customer_ref.name}` : '',
+            timestamp: new Date(),
+            rental_id: rental._id || rental.rental_id
+          });
+        } else if (daysUntil === 1) {
+          notifications.push({
+            type: 'warning',
+            title: 'Return Due Tomorrow',
+            message: `${vehicleInfo} is due for return tomorrow`,
+            description: rental.customer_ref?.name ? `Customer: ${rental.customer_ref.name}` : '',
+            timestamp: new Date(),
+            rental_id: rental._id || rental.rental_id
+          });
+        }
+      } catch (error) {
+        console.error('Error processing rental notification:', error);
       }
     }
   });
 
   // Check for upcoming bookings
-  bookings.forEach(booking => {
+  bookingsArray.forEach(booking => {
+    if (!booking) return;
+    
     if (['Pending', 'Confirmed'].includes(booking.rental_status || booking.status)) {
-      const startDate = new Date(booking.start_date);
-      startDate.setHours(0, 0, 0, 0);
-      const daysUntil = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+      try {
+        if (!booking.start_date) return;
+        
+        const startDate = new Date(booking.start_date);
+        if (isNaN(startDate.getTime())) return; // Invalid date
+        
+        startDate.setHours(0, 0, 0, 0);
+        const daysUntil = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
 
-      if (daysUntil === 2) {
-        notifications.push({
-          type: 'warning',
-          title: 'Booking Reminder',
-          message: `Booking for ${booking.customer_name} starts in 2 days`,
-          timestamp: new Date(),
-          booking_id: booking._id || booking.booking_id
-        });
-      } else if (daysUntil === 1) {
-        notifications.push({
-          type: 'warning',
-          title: 'Booking Tomorrow',
-          message: `Booking for ${booking.customer_name} starts tomorrow`,
-          timestamp: new Date(),
-          booking_id: booking._id || booking.booking_id
-        });
-      } else if (daysUntil === 0) {
-        notifications.push({
-          type: 'critical',
-          title: 'Booking Starts Today',
-          message: `Booking for ${booking.customer_name} starts today`,
-          timestamp: new Date(),
-          booking_id: booking._id || booking.booking_id
-        });
+        const customerName = booking.customer_name || booking.customer_ref?.name || 'Customer';
+
+        if (daysUntil === 2) {
+          notifications.push({
+            type: 'warning',
+            title: 'Booking Reminder',
+            message: `Booking for ${customerName} starts in 2 days`,
+            description: booking.vehicle_request || booking.license_plate || '',
+            timestamp: new Date(),
+            booking_id: booking._id || booking.booking_id
+          });
+        } else if (daysUntil === 1) {
+          notifications.push({
+            type: 'warning',
+            title: 'Booking Tomorrow',
+            message: `Booking for ${customerName} starts tomorrow`,
+            description: booking.vehicle_request || booking.license_plate || '',
+            timestamp: new Date(),
+            booking_id: booking._id || booking.booking_id
+          });
+        } else if (daysUntil === 0) {
+          notifications.push({
+            type: 'critical',
+            title: 'Booking Starts Today',
+            message: `Booking for ${customerName} starts today`,
+            description: booking.vehicle_request || booking.license_plate || '',
+            timestamp: new Date(),
+            booking_id: booking._id || booking.booking_id
+          });
+        }
+      } catch (error) {
+        console.error('Error processing booking notification:', error);
       }
     }
   });
 
   // Check for pending payments
-  rentals.forEach(rental => {
+  rentalsArray.forEach(rental => {
+    if (!rental) return;
+    
     if (rental.payment_status === 'Pending' || rental.payment_status === 'Partial') {
+      const customerName = rental.customer_ref?.name || 'customer';
       notifications.push({
         type: 'warning',
         title: 'Pending Payment',
-        message: `Payment pending for ${rental.customer_ref?.name || 'customer'}`,
+        message: `Payment pending for ${customerName}`,
+        description: rental.vehicle_ref?.license_plate || '',
         timestamp: new Date(),
-        rental_id: rental._id
+        rental_id: rental._id || rental.rental_id
       });
     }
   });
 
-  return notifications.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  // Remove duplicates based on rental_id/booking_id and type
+  const uniqueNotifications = [];
+  const seen = new Set();
+  
+  notifications.forEach(notif => {
+    const key = `${notif.type}-${notif.rental_id || notif.booking_id || notif.title}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueNotifications.push(notif);
+    }
+  });
+
+  return uniqueNotifications.sort((a, b) => {
+    // Sort by priority: critical > warning > success
+    const priority = { critical: 3, warning: 2, success: 1 };
+    const priorityDiff = (priority[b.type] || 0) - (priority[a.type] || 0);
+    if (priorityDiff !== 0) return priorityDiff;
+    // Then by timestamp
+    return new Date(b.timestamp) - new Date(a.timestamp);
+  });
 };
 
 export default function DriverPortal() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(true);
@@ -141,10 +200,15 @@ export default function DriverPortal() {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedRental, setSelectedRental] = useState(null);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [profilePictureDialogOpen, setProfilePictureDialogOpen] = useState(false);
+  const [driverProfile, setDriverProfile] = useState(null);
 
   // Fetch all data
-  const fetchAllData = async () => {
-    setLoading(true);
+  const fetchAllData = async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
     try {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
@@ -175,12 +239,15 @@ export default function DriverPortal() {
         ]);
       }
 
+      let rentalsData = [];
+      let bookingsData = [];
+
       if (rentalsRes.data.success) {
-        const rentalsData = rentalsRes.data.data || [];
+        rentalsData = rentalsRes.data.data || [];
         setRentals(rentalsData);
         
         // Transform rentals to bookings format
-        const bookingsData = rentalsData
+        bookingsData = rentalsData
           .filter(r => ['Pending', 'Confirmed'].includes(r.rental_status))
           .map(r => ({
             ...r,
@@ -208,39 +275,44 @@ export default function DriverPortal() {
             customer_ref: { name: 'John Doe', _id: '1' }
           }
         ];
+        rentalsData = mockRentals;
+        bookingsData = [];
         setRentals(mockRentals);
         setBookings([]);
       }
 
-      // Generate notifications
-      const autoNotifications = generateNotifications(rentalsRes.data.success ? rentalsRes.data.data : rentals, bookings);
+      // Generate notifications using the current data
+      const autoNotifications = generateNotifications(rentalsData, bookingsData);
       setNotifications(autoNotifications);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load data');
+      if (showLoading) {
+        toast.error('Failed to load data');
+      }
     } finally {
-      setLoading(false);
+      if (showLoading) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchAllData();
-    const interval = setInterval(fetchAllData, 60000); // Refresh every minute
+    // Initial load with loading indicator
+    fetchAllData(true);
+    
+    // Auto-refresh every 2 minutes (120000ms) without showing loading
+    const interval = setInterval(() => {
+      fetchAllData(false); // Silent refresh - no loading state
+    }, 120000); // Changed to 2 minutes for less frequent updates
+    
     return () => clearInterval(interval);
   }, []);
 
-  // Calculate stats
+  // Calculate stats (NO REVENUE - Driver should not see money)
   const stats = {
     activeRentals: rentals.filter(r => r.rental_status === 'Active').length || 0,
     availableVehicles: vehicles.filter(v => v.availability_status === 'Parking').length || 0,
-    revenueThisWeek: rentals
-      .filter(r => {
-        if (!r.start_date) return false;
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        return new Date(r.start_date) >= weekAgo && r.rental_status === 'Completed';
-      })
-      .reduce((sum, r) => sum + (r.total_fee_gross || 0), 0) || 0,
+    totalCustomers: customers.length || 0,
     returnsToday: rentals.filter(r => {
       if (r.rental_status !== 'Active' || !r.end_date) return false;
       const today = new Date();
@@ -304,9 +376,27 @@ export default function DriverPortal() {
 
   // Handlers
   const handleLogout = () => {
-    localStorage.clear();
-    navigate('/login');
-    toast.success('Logged out successfully');
+    try {
+      // Clear all auth data
+      logout(); // Clear token and user state from AuthContext
+      localStorage.removeItem('token'); // Ensure token is removed
+      
+      // Clear any other stored data if needed
+      localStorage.removeItem('user');
+      
+      // Show success message
+      toast.success('Logged out successfully');
+      
+      // Navigate to login - use window.location for a clean redirect
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Force navigation even if there's an error
+      localStorage.clear();
+      window.location.href = '/login';
+    }
   };
 
   const handleHireOut = async (formData) => {
@@ -318,7 +408,7 @@ export default function DriverPortal() {
       
       if (response.data.success) {
         toast.success('Car hired out successfully!');
-        fetchAllData();
+        fetchAllData(false); // Silent refresh after action
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to hire out car');
@@ -334,7 +424,7 @@ export default function DriverPortal() {
       
       if (response.data.success) {
         toast.success('Vehicle marked as returned');
-        fetchAllData();
+        fetchAllData(false); // Silent refresh after action
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to mark vehicle as returned');
@@ -350,7 +440,7 @@ export default function DriverPortal() {
       
       if (response.data.success) {
         toast.success('Rental extended successfully');
-        fetchAllData();
+        fetchAllData(false); // Silent refresh after action
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to extend rental');
@@ -360,22 +450,107 @@ export default function DriverPortal() {
   const handleCreateBooking = async (formData) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/api/rentals`, {
-        ...formData,
-        rental_status: 'Pending',
-        hire_type: 'Direct Client'
-      }, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      
+      // Format the booking data
+      const bookingData = {
+        customer_name: formData.customer_name,
+        customer_phone: formData.customer_phone,
+        customer_email: '', // Optional, can be added to form later
+        vehicle_make: formData.vehicle_make,
+        vehicle_model: formData.vehicle_model,
+        vehicle_request: `${formData.vehicle_make} ${formData.vehicle_model}`, // Combined for display
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        price_per_day: parseFloat(formData.price_per_day),
+        destination: formData.destination || '',
+        notes: formData.notes || ''
+      };
+      
+      const response = await axios.post(`${API_URL}/api/bookings/create`, bookingData, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       
       if (response.data.success) {
         toast.success('Booking created successfully!');
-        fetchAllData();
+        fetchAllData(false); // Silent refresh after action
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to create booking');
+      console.error('Error creating booking:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to create booking';
+      toast.error(errorMessage);
     }
   };
+
+  // Mark vehicle as returned
+  const handleMarkAsReturned = async (booking) => {
+    const confirmed = window.confirm(
+      `Confirm that ${booking.customerName} has returned ${booking.licensePlate}?`
+    );
+    
+    if (!confirmed) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const bookingId = booking.booking_id || booking._id || booking.rental_id;
+      
+      const response = await axios.post(
+        `${API_URL}/api/bookings/${bookingId}/mark-returned`,
+        {
+          actual_return_date: new Date(),
+          notes: 'Vehicle returned on time'
+        },
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data.success) {
+        toast.success(`${booking.licensePlate} marked as returned! Status changed to Available.`);
+        fetchAllData(false); // Silent refresh after action
+      }
+    } catch (error) {
+      console.error('Error marking as returned:', error);
+      toast.error('Failed to mark vehicle as returned');
+    }
+  };
+
+  // Client extending rental
+  const handleClientExtending = (booking) => {
+    setSelectedRental(booking);
+    setExtendModalOpen(true);
+  };
+
+  // Fetch driver profile
+  useEffect(() => {
+    const fetchDriverProfile = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_URL}/api/driver/profile`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (response.data.success) {
+          setDriverProfile(response.data.data);
+        }
+      } catch (error) {
+        console.error('Error fetching driver profile:', error);
+        // Use user from auth context as fallback
+        if (user) {
+          setDriverProfile({ name: user.name, email: user.email });
+        }
+      }
+    };
+
+    if (user) {
+      fetchDriverProfile();
+    }
+  }, [user]);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -503,13 +678,75 @@ export default function DriverPortal() {
                   {menuItems.find(m => m.id === activeTab)?.label || 'Dashboard'}
                 </h1>
               </div>
-              <button
-                onClick={() => setHireOutModalOpen(true)}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
-              >
-                <Plus className="w-5 h-5" />
-                Hire Out Car
-              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setHireOutModalOpen(true)}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-xl transition-all hover:scale-105"
+                >
+                  <Plus className="w-5 h-5" />
+                  Hire Out Car
+                </button>
+                
+                {/* Notification Bell */}
+                <button 
+                  onClick={() => setActiveTab('notifications')} 
+                  className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                >
+                  <Bell size={24} />
+                  {notifications.length > 0 && (
+                    <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-bold">
+                      {notifications.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Profile Picture */}
+                <div className="relative">
+                  <button
+                    onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                    className="flex items-center gap-3 p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    {driverProfile?.profile_picture ? (
+                      <img
+                        src={`${API_URL}${driverProfile.profile_picture}`}
+                        alt="Profile"
+                        className="w-10 h-10 rounded-full object-cover border-2 border-blue-500"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                        {driverProfile?.name?.charAt(0).toUpperCase() || user?.name?.charAt(0).toUpperCase() || 'D'}
+                      </div>
+                    )}
+                    <div className="hidden sm:block text-left">
+                      <p className="text-sm font-semibold text-gray-900">{driverProfile?.name || user?.name || 'Driver'}</p>
+                      <p className="text-xs text-gray-500">Driver</p>
+                    </div>
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {profileMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                      <button
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          setProfilePictureDialogOpen(true);
+                        }}
+                        className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center gap-2"
+                      >
+                        <User size={18} />
+                        <span>Change Picture</span>
+                      </button>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full px-4 py-2 text-left hover:bg-red-50 text-red-600 flex items-center gap-2"
+                      >
+                        <LogOut size={18} />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -533,6 +770,8 @@ export default function DriverPortal() {
                   setSelectedRental(rental);
                   setExtendModalOpen(true);
                 }}
+                onMarkAsReturned={handleMarkAsReturned}
+                onClientExtending={handleClientExtending}
               />
             )}
 
@@ -559,6 +798,7 @@ export default function DriverPortal() {
             {activeTab === 'records' && (
               <VehicleRecords
                 vehicle={selectedVehicle}
+                vehicles={vehicles}
                 rentals={rentals}
               />
             )}
@@ -614,8 +854,34 @@ export default function DriverPortal() {
           setSelectedRental(null);
         }}
         rental={selectedRental}
-        onSubmit={handleExtend}
+        onSuccess={() => {
+          fetchAllData(false); // Silent refresh after action
+          setExtendModalOpen(false);
+          setSelectedRental(null);
+        }}
       />
+      
+      {/* Profile Picture Dialog */}
+      {profilePictureDialogOpen && (
+        <ProfilePictureDialog
+          open={profilePictureDialogOpen}
+          onClose={() => setProfilePictureDialogOpen(false)}
+          onSuccess={() => {
+            fetchAllData(false); // Silent refresh after action
+            // Re-fetch profile
+            const token = localStorage.getItem('token');
+            axios.get(`${API_URL}/api/driver/profile`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            }).then(res => {
+              if (res.data.success) {
+                setDriverProfile(res.data.data);
+              }
+            }).catch(err => {
+              console.error('Error fetching profile after upload:', err);
+            });
+          }}
+        />
+      )}
 
       <CustomerInfoModal
         isOpen={customerModalOpen}

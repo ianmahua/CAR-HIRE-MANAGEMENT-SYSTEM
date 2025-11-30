@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import Modal from '../base/Modal';
 import Button from '../base/Button';
-import { Calendar, Car, User, DollarSign } from 'lucide-react';
+import { Calendar, Car, User, MapPin } from 'lucide-react';
 
 const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_phone: '',
-    vehicle_ref: '',
+    vehicle_make: '',
+    vehicle_model: '',
     start_date: '',
     end_date: '',
     price_per_day: '',
@@ -28,7 +29,8 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
     const newErrors = {};
     if (!formData.customer_name) newErrors.customer_name = 'Required';
     if (!formData.customer_phone) newErrors.customer_phone = 'Required';
-    if (!formData.vehicle_ref) newErrors.vehicle_ref = 'Required';
+    if (!formData.vehicle_make) newErrors.vehicle_make = 'Required';
+    if (!formData.vehicle_model) newErrors.vehicle_model = 'Required';
     if (!formData.start_date) newErrors.start_date = 'Required';
     if (!formData.end_date) newErrors.end_date = 'Required';
     if (!formData.price_per_day) newErrors.price_per_day = 'Required';
@@ -55,7 +57,8 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
     setFormData({
       customer_name: '',
       customer_phone: '',
-      vehicle_ref: '',
+      vehicle_make: '',
+      vehicle_model: '',
       start_date: '',
       end_date: '',
       price_per_day: '',
@@ -122,31 +125,45 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Select Vehicle *
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <Car className="w-4 h-4 text-indigo-600" />
+                Vehicle Make *
               </label>
-              <select
-                name="vehicle_ref"
-                value={formData.vehicle_ref}
+              <input
+                type="text"
+                name="vehicle_make"
+                value={formData.vehicle_make}
                 onChange={handleChange}
+                placeholder="e.g., Toyota, Nissan, Subaru"
                 className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
-                  errors.vehicle_ref ? 'border-rose-500' : 'border-gray-200'
+                  errors.vehicle_make ? 'border-rose-500' : 'border-gray-200'
                 }`}
-              >
-                <option value="">-- Select Vehicle --</option>
-                {vehicles?.map(vehicle => (
-                  <option key={vehicle._id} value={vehicle._id}>
-                    {vehicle.license_plate} - {vehicle.make} {vehicle.model}
-                  </option>
-                ))}
-              </select>
-              {errors.vehicle_ref && (
-                <p className="text-rose-600 text-sm mt-1">{errors.vehicle_ref}</p>
+              />
+              {errors.vehicle_make && (
+                <p className="text-rose-600 text-sm mt-1">{errors.vehicle_make}</p>
               )}
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                <DollarSign className="w-4 h-4" />
+                <Car className="w-4 h-4 text-indigo-600" />
+                Vehicle Model *
+              </label>
+              <input
+                type="text"
+                name="vehicle_model"
+                value={formData.vehicle_model}
+                onChange={handleChange}
+                placeholder="e.g., Prado, X-Trail, Forester"
+                className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
+                  errors.vehicle_model ? 'border-rose-500' : 'border-gray-200'
+                }`}
+              />
+              {errors.vehicle_model && (
+                <p className="text-rose-600 text-sm mt-1">{errors.vehicle_model}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Price Per Day (KES) *
               </label>
               <input
@@ -156,6 +173,7 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
                 onChange={handleChange}
                 min="0"
                 step="100"
+                placeholder="e.g., 5000"
                 className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
                   errors.price_per_day ? 'border-rose-500' : 'border-gray-200'
                 }`}
@@ -201,7 +219,8 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
               )}
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-indigo-600" />
                 Destination (Optional)
               </label>
               <input

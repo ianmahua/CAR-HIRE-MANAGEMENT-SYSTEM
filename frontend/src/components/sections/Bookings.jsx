@@ -8,10 +8,15 @@ const Bookings = ({ bookings, onCreateBooking }) => {
 
   const filteredBookings = bookings.filter(booking => {
     const searchLower = searchTerm.toLowerCase();
+    const vehicleInfo = booking.vehicle_request || 
+      (booking.vehicle_make && booking.vehicle_model 
+        ? `${booking.vehicle_make} ${booking.vehicle_model}`.trim()
+        : booking.license_plate || '');
     return (
       booking.customer_name?.toLowerCase().includes(searchLower) ||
-      booking.license_plate?.toLowerCase().includes(searchLower) ||
-      booking.booking_id?.toLowerCase().includes(searchLower)
+      vehicleInfo.toLowerCase().includes(searchLower) ||
+      booking.booking_id?.toLowerCase().includes(searchLower) ||
+      booking.customer_phone?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -67,7 +72,11 @@ const Bookings = ({ bookings, onCreateBooking }) => {
                   </div>
                   <div>
                     <h3 className="text-xl font-bold text-gray-900">{booking.customer_name || 'Unknown'}</h3>
-                    <p className="text-sm text-gray-600">{booking.license_plate || 'N/A'}</p>
+                    <p className="text-sm text-gray-600">
+                      {booking.vehicle_request || booking.vehicle_make && booking.vehicle_model 
+                        ? `${booking.vehicle_make || ''} ${booking.vehicle_model || ''}`.trim()
+                        : booking.license_plate || 'Vehicle Request'}
+                    </p>
                   </div>
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold border-2 ${getStatusBadge(booking.rental_status || booking.status)}`}>
@@ -89,12 +98,6 @@ const Bookings = ({ bookings, onCreateBooking }) => {
                   <p className="font-bold text-gray-900 flex items-center gap-1">
                     <Clock className="w-4 h-4" />
                     {Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24))} days
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-semibold mb-1">Amount</p>
-                  <p className="font-bold text-emerald-600">
-                    KES {(booking.total_amount || 0).toLocaleString()}
                   </p>
                 </div>
               </div>

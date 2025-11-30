@@ -77,7 +77,7 @@ const Customers = ({ customers, onCustomerClick }) => {
               <div>
                 <p className="text-xs text-gray-500 uppercase font-semibold">Lifetime Value</p>
                 <p className="text-2xl font-bold text-emerald-600">
-                  KES {(customer.total_spent || 0).toLocaleString()}
+                  {customer.total_bookings || 0} rentals
                 </p>
               </div>
             </div>

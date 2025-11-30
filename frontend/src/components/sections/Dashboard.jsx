@@ -1,5 +1,5 @@
 import React from 'react';
-import { Car, CheckCircle, TrendingUp, Clock, Bell, AlertCircle, Calendar } from 'lucide-react';
+import { Car, CheckCircle, Clock, Bell, AlertCircle, Calendar, RefreshCw, Users } from 'lucide-react';
 import StatBadge from '../base/StatBadge';
 import Card from '../base/Card';
 import Button from '../base/Button';
@@ -14,7 +14,9 @@ const Dashboard = ({
   onViewReturns,
   onViewNotifications,
   onProcessReturn,
-  onExtendRental
+  onExtendRental,
+  onMarkAsReturned,
+  onClientExtending
 }) => {
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -40,6 +42,69 @@ const Dashboard = ({
         <p className="text-indigo-100 text-lg">Here's your operational overview</p>
       </div>
 
+      {/* Returns Due Today - Prominent Notification */}
+      {(() => {
+        const returningToday = upcomingReturns.filter(r => r.isToday);
+        if (returningToday.length > 0) {
+          return (
+            <div className="bg-gradient-to-r from-orange-500 to-red-500 rounded-2xl shadow-2xl p-6 text-white mb-8">
+              <div className="flex items-center gap-3 mb-4">
+                <AlertCircle size={32} />
+                <h3 className="text-2xl font-bold">⚠️ Returns Due Today</h3>
+              </div>
+              
+              <div className="space-y-4">
+                {returningToday.map((booking) => (
+                  <div key={booking._id || booking.booking_id} className="bg-white bg-opacity-20 backdrop-blur rounded-xl p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      {/* Vehicle & Customer Info */}
+                      <div>
+                        <p className="text-sm text-orange-100">Vehicle</p>
+                        <p className="text-lg font-bold">{booking.licensePlate}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-orange-100">Customer</p>
+                        <p className="text-lg font-bold">{booking.customerName}</p>
+                        <p className="text-sm">{booking.customerPhone || booking.customer_ref?.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-orange-100">Hired For</p>
+                        <p className="text-lg font-bold">
+                          {Math.ceil((new Date(booking.endDate) - new Date(booking.start_date || booking.startDate)) / (1000 * 60 * 60 * 24))} days
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-orange-100">Due Back</p>
+                        <p className="text-lg font-bold">TODAY</p>
+                      </div>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        onClick={() => onMarkAsReturned && onMarkAsReturned(booking)}
+                        className="px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle size={20} />
+                        Vehicle Returned
+                      </button>
+                      <button
+                        onClick={() => onClientExtending && onClientExtending(booking)}
+                        className="px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                      >
+                        <RefreshCw size={20} />
+                        Client Extending
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatBadge
@@ -57,10 +122,11 @@ const Dashboard = ({
           onClick={onViewVehicles}
         />
         <StatBadge
-          label="Revenue This Week"
-          value={`KES ${(stats.revenueThisWeek / 1000).toFixed(0)}K`}
-          icon={TrendingUp}
-          color="amber"
+          label="Total Customers"
+          value={stats.totalCustomers || 0}
+          icon={Users}
+          color="purple"
+          onClick={onViewBookings}
         />
         <StatBadge
           label="Returns Today"
@@ -219,7 +285,7 @@ const Dashboard = ({
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">
-                      Amount: KES {(booking.totalAmount || 0).toLocaleString()}
+                      Starts: {new Date(booking.startDate || booking.start_date).toLocaleDateString()}
                     </p>
                   </div>
                 );

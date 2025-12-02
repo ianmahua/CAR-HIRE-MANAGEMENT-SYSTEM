@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Car Hire Agreement - {{contract_id}}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --color-yellow: #F7C948;
+      --color-blue: #1E40AF;
+      --color-navy: #0E1A2B;
+      --color-bg: #F4F4F5;
+      --color-text: #1E293B;
+      --color-border: #E5E7EB;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--color-bg);
+      font-family: 'Roboto', Arial, Helvetica, sans-serif;
+      color: var(--color-text);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .page {
+      width: 100%;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 0 0 24px 0;
+    }
+
+    .section {
+      padding: 20px 24px;
+    }
+
+    .section + .section {
+      border-top: 1px solid var(--color-border);
+    }
+
+    .section--boxed {
+      background: #FAFAFA;
+      border-radius: 8px;
+      border: 1px solid var(--color-border);
+      margin-bottom: 16px;
+    }
+
+    h1, h2, h3, h4 {
+      margin: 0;
+      padding: 0;
+      color: var(--color-navy);
+    }
+
+    h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: var(--color-blue);
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    p {
+      margin: 0 0 6px 0;
+    }
+
+    .text-muted {
+      color: #6B7280;
+      font-size: 12px;
+    }
+
+    .label {
+      font-weight: 600;
+      color: var(--color-navy);
+    }
+
+    .value {
+      color: var(--color-text);
+    }
+
+    .two-col {
+      display: flex;
+      gap: 16px;
+    }
+
+    .two-col__item {
+      flex: 1;
+    }
+
+    .header-main {
+      background: var(--color-yellow);
+      padding: 20px 24px 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .header-main__left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-main__logo {
+      width: 120px;
+      height: auto;
+    }
+
+    .header-main__title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--color-navy);
+      text-transform: uppercase;
+    }
+
+    .header-main__subtitle {
+      font-size: 12px;
+      color: var(--color-navy);
+      margin-top: 4px;
+    }
+
+    .header-main__right {
+      text-align: right;
+      font-size: 11px;
+      color: var(--color-navy);
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 12px;
+    }
+
+    .summary-row .label {
+      color: var(--color-navy);
+    }
+
+    .summary-row .value {
+      font-weight: 500;
+    }
+
+    .box-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--color-blue);
+      margin-bottom: 8px;
+    }
+
+    .box-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 13px;
+    }
+
+    .box-list li {
+      margin-bottom: 4px;
+      padding-left: 14px;
+      position: relative;
+    }
+
+    .box-list li::before {
+      content: "-";
+      position: absolute;
+      left: 0;
+      color: var(--color-blue);
+      font-weight: 700;
+    }
+
+    .badge-row {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #E5E7EB;
+      font-size: 11px;
+      color: #374151;
+    }
+
+    .page-break {
+      page-break-before: always;
+      height: 0;
+      margin: 0;
+      padding: 0;
+      border: 0;
+    }
+
+    .sign-row {
+      display: flex;
+      gap: 24px;
+      margin-top: 16px;
+    }
+
+    .sign-box {
+      flex: 1;
+      border: 2px solid var(--color-yellow);
+      border-radius: 8px;
+      padding: 14px 14px 18px 14px;
+      min-height: 110px;
+    }
+
+    .sign-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--color-navy);
+      margin-bottom: 6px;
+    }
+
+    .sign-line {
+      margin-top: 10px;
+      border-bottom: 1px solid #9CA3AF;
+      height: 1px;
+      width: 100%;
+    }
+
+    .sign-meta {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #4B5563;
+    }
+
+    .sign-image {
+      max-width: 150px;
+      height: auto;
+      display: block;
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- HEADER -->
+    <div class="header-main">
+      <div class="header-main__left">
+        <div>
+          <img src="{{logoBase64}}" alt="Ressey Tours Logo" class="header-main__logo" />
+        </div>
+        <div>
+          <div class="header-main__title">
+            RESSEY TOURS &amp; CAR HIRE COMPANY
+          </div>
+          <div class="header-main__subtitle">
+            {{company_address}} &nbsp;|&nbsp; Tel: {{company_phone1}} / {{company_phone2}} &nbsp;|&nbsp; {{company_email}}
+          </div>
+        </div>
+      </div>
+      <div class="header-main__right">
+        <div><strong>Contract ID:</strong> {{contract_id}}</div>
+        <div><strong>Issue Date:</strong> {{issue_date}}</div>
+      </div>
+    </div>
+
+    <!-- TITLE -->
+    <div class="section" style="padding-top:16px; padding-bottom:10px;">
+      <h1 style="text-align:center;">CAR HIRE AGREEMENT</h1>
+    </div>
+
+    <!-- PARTIES -->
+    <div class="section">
+      <div class="two-col">
+        <div class="two-col__item section--boxed">
+          <h3 style="color:#1E40AF; margin-bottom:6px;">THE COMPANY</h3>
+          <p><span class="label">Name:</span> <span class="value">{{company_name}}</span></p>
+          <p><span class="label">Address:</span> <span class="value">{{company_address}}</span></p>
+          <p><span class="label">Email:</span> <span class="value">{{company_email}}</span></p>
+          <p><span class="label">Phone:</span> <span class="value">{{company_phone1}} / {{company_phone2}}</span></p>
+        </div>
+        <div class="two-col__item section--boxed" style="background:#EFF6FF; border-color:#1E40AF;">
+          <h3 style="color:#1E40AF; margin-bottom:6px;">THE HIRER</h3>
+          <p><span class="label">Name:</span> <span class="value">{{customer_name}}</span></p>
+          <p><span class="label">Phone:</span> <span class="value">{{customer_phone}}</span></p>
+          <p><span class="label">Email:</span> <span class="value">{{customer_email}}</span></p>
+          <p><span class="label">ID / Passport:</span> <span class="value">{{customer_id_number}}</span></p>
+          <p><span class="label">Address:</span> <span class="value">{{customer_address}}</span></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- VEHICLE DETAILS -->
+    <div class="section section--boxed">
+      <h2>Vehicle Details</h2>
+      <p style="font-size:14px; font-weight:600; margin-top:8px;">{{vehicle_name}}</p>
+
+      <div class="badge-row">
+        <span class="badge">Reg: {{vehicle_reg}}</span>
+        <span class="badge">Year: {{vehicle_year}}</span>
+        <span class="badge">Color: {{vehicle_color}}</span>
+        <span class="badge">Fuel: {{vehicle_fuel_type}}</span>
+      </div>
+    </div>
+
+    <!-- RENTAL PERIOD -->
+    <div class="section section--boxed">
+      <h2>Rental Period</h2>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px; font-size:13px;">
+        <tr>
+          <td width="33%">
+            <span class="label">Start Date:</span><br/>
+            <span class="value">{{start_date}}</span>
+          </td>
+          <td width="34%" align="center">
+            <span class="label">Duration:</span><br/>
+            <span class="value">{{duration}} day(s)</span>
+          </td>
+          <td width="33%" align="right">
+            <span class="label">End Date:</span><br/>
+            <span class="value">{{end_date}}</span>
+          </td>
+        </tr>
+      </table>
+      <p style="margin-top:10px;">
+        <span class="label">Destination:</span> <span class="value">{{destination}}</span>
+      </p>
+    </div>
+
+    <!-- PAYMENT DETAILS -->
+    <div class="section section--boxed">
+      <h2>Payment Details</h2>
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:10px; font-size:13px;">
+        <tr>
+          <td width="50%">
+            <span class="label">Daily Rate:</span><br/>
+            <span class="value">KES {{daily_rate}}</span>
+          </td>
+          <td width="50%" align="right">
+            <span class="label">Duration:</span><br/>
+            <span class="value">{{duration}} day(s)</span>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding-top:8px; border-top:1px solid #E5E7EB; padding-bottom:6px;"></td>
+        </tr>
+        <tr>
+          <td colspan="2" align="right">
+            <span class="label" style="font-size:13px;">TOTAL AMOUNT:</span>
+            <span style="font-size:16px; font-weight:700; color:#1E40AF; margin-left:8px;">
+              KES {{total_amount}}
+            </span>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- PAGE BREAK -->
+  <div class="page-break"></div>
+
+  <!-- PAGE 2: TERMS & CONDITIONS -->
+  <div class="page">
+    <!-- Section 4 -->
+    <div class="section section--boxed">
+      <h2>Section 4: Hirer Responsibilities</h2>
+      <p>The Hirer agrees to:</p>
+      <ul class="box-list" style="margin-top:6px;">
+        <li>Return the vehicle in the same condition as received, fair wear and tear excepted.</li>
+        <li>Pay for all fuel, oil, and other consumables used during the hire period.</li>
+        <li>Comply with all traffic laws, regulations, and local road rules.</li>
+        <li>Ensure that only authorised and licensed drivers operate the vehicle.</li>
+        <li>Use the vehicle solely for lawful purposes and in a careful and responsible manner.</li>
+        <li>Immediately report any accident, damage, theft, or mechanical issues to the Company.</li>
+      </ul>
+    </div>
+
+    <!-- Section 5 -->
+    <div class="section section--boxed">
+      <h2>Section 5: Insurance &amp; Liability</h2>
+      <p>
+        The vehicle is covered by a comprehensive insurance policy, subject to the terms and conditions
+        of the insurer. However, the Hirer acknowledges and agrees that they shall be liable for:
+      </p>
+      <ul class="box-list" style="margin-top:6px;">
+        <li>Any damage to the vehicle arising from negligence, misuse, or breach of this Agreement.</li>
+        <li>Theft or loss of the vehicle where the keys are left in the vehicle or it is left unsecured.</li>
+        <li>Any insurance excess or deductibles specified in the insurance policy.</li>
+        <li>All costs, penalties, or fines not covered by the insurance policy.</li>
+      </ul>
+      <p style="margin-top:10px; font-size:12px; color:#4B5563;">
+        Important: In the event of an accident, the Hirer must obtain a police abstract and promptly
+        provide all necessary information and assistance required by the Company and the insurer.
+      </p>
+    </div>
+
+    <!-- Section 6 -->
+    <div class="section section--boxed">
+      <h2>Section 6: Prohibited Use</h2>
+      <p>The vehicle shall <strong>not</strong> be used for any of the following purposes:</p>
+      <ul class="box-list" style="margin-top:6px;">
+        <li>Participation in any race, rally, competition, or use on non-designated roads or off-road terrain.</li>
+        <li>Driving under the influence of alcohol, drugs, or any other intoxicating substance.</li>
+        <li>Carrying passengers or goods for hire or reward, unless expressly authorised in writing.</li>
+        <li>Sub-letting, lending, or permitting any unauthorised person to drive the vehicle.</li>
+        <li>Transporting illegal goods or engaging in any unlawful activities.</li>
+        <li>Driving the vehicle outside the borders of Kenya without prior written approval from the Company.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- PAGE BREAK -->
+  <div class="page-break"></div>
+
+  <!-- FINAL PAGE: ACCEPTANCE & SIGNATURES -->
+  <div class="page">
+    <div class="section section--boxed">
+      <h2>Acceptance &amp; Signature</h2>
+      <p style="margin-top:8px;">
+        By signing this Agreement, both parties confirm that they have read, understood, and agree to be bound
+        by all the terms and conditions set out in this Car Hire Agreement. This Agreement is governed by the
+        laws of the Republic of Kenya.
+      </p>
+
+      <div class="sign-row">
+        <!-- Company -->
+        <div class="sign-box">
+          <div class="sign-title">FOR THE COMPANY</div>
+          <img src="{{signatureBase64}}" alt="Director Signature" class="sign-image" />
+          <div class="sign-line"></div>
+          <div class="sign-meta">
+            {{director_name}}<br/>
+            {{director_position}}<br/>
+            {{company_name}}
+          </div>
+        </div>
+
+        <!-- Hirer -->
+        <div class="sign-box">
+          <div class="sign-title">FOR THE HIRER</div>
+          <div style="margin-top:18px; font-size:10px; color:#6B7280;">
+            Signature:
+          </div>
+          <div class="sign-line"></div>
+          <div class="sign-meta">
+            Name: {{customer_name}}<br/>
+            ID No: {{customer_id_number}}<br/>
+            Date: ______________________
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
+

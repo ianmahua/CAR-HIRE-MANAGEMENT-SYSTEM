@@ -6,7 +6,9 @@ import { Car, User, Calendar, MapPin } from 'lucide-react';
 const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
   const [formData, setFormData] = useState({
     customer_name: '',
+    customer_email: '',
     customer_phone: '',
+    customer_address: 'Nairobi',
     customer_id: '',
     vehicle_ref: '',
     start_date: '',
@@ -24,10 +26,32 @@ const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
     }
   };
 
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone) => {
+    // Accept Kenyan format: 07xx xxx xxx or 2547xx xxx xxx
+    const phoneRegex = /^(?:254|0)?[17]\d{8}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+  };
+
   const validate = () => {
     const newErrors = {};
+    
+    // Required fields
     if (!formData.customer_name) newErrors.customer_name = 'Required';
-    if (!formData.customer_phone) newErrors.customer_phone = 'Required';
+    if (!formData.customer_email) {
+      newErrors.customer_email = 'Required';
+    } else if (!validateEmail(formData.customer_email)) {
+      newErrors.customer_email = 'Please enter a valid email address';
+    }
+    if (!formData.customer_phone) {
+      newErrors.customer_phone = 'Required';
+    } else if (!validatePhone(formData.customer_phone)) {
+      newErrors.customer_phone = 'Please enter a valid Kenyan phone number (07xx xxx xxx)';
+    }
     if (!formData.vehicle_ref) newErrors.vehicle_ref = 'Required';
     if (!formData.start_date) newErrors.start_date = 'Required';
     if (!formData.end_date) newErrors.end_date = 'Required';
@@ -54,7 +78,9 @@ const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
   const handleClose = () => {
     setFormData({
       customer_name: '',
+      customer_email: '',
       customer_phone: '',
+      customer_address: 'Nairobi',
       customer_id: '',
       vehicle_ref: '',
       start_date: '',
@@ -97,6 +123,24 @@ const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Customer Email *
+              </label>
+              <input
+                type="email"
+                name="customer_email"
+                value={formData.customer_email}
+                onChange={handleChange}
+                placeholder="customer@example.com"
+                className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
+                  errors.customer_email ? 'border-rose-500' : 'border-gray-200'
+                }`}
+              />
+              {errors.customer_email && (
+                <p className="text-rose-600 text-sm mt-1">{errors.customer_email}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Phone Number *
               </label>
               <input
@@ -104,7 +148,7 @@ const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
                 name="customer_phone"
                 value={formData.customer_phone}
                 onChange={handleChange}
-                placeholder="254712345678"
+                placeholder="07xx xxx xxx"
                 className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
                   errors.customer_phone ? 'border-rose-500' : 'border-gray-200'
                 }`}
@@ -115,13 +159,27 @@ const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                ID Number (Optional)
+                Customer Address
+              </label>
+              <input
+                type="text"
+                name="customer_address"
+                value={formData.customer_address}
+                onChange={handleChange}
+                placeholder="Nairobi"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                ID/Passport Number
               </label>
               <input
                 type="text"
                 name="customer_id"
                 value={formData.customer_id}
                 onChange={handleChange}
+                placeholder="Optional"
                 className="w-full px-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors"
               />
             </div>
@@ -246,4 +304,5 @@ const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
 };
 
 export default HireOutModal;
+
 

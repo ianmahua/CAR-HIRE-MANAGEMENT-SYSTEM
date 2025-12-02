@@ -400,18 +400,70 @@ export default function DriverPortal() {
   };
 
   const handleHireOut = async (formData) => {
+    // Prevent multiple submissions
+    if (formData._isSubmitting) {
+      return;
+    }
+    formData._isSubmitting = true;
+
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_URL}/api/rentals`, formData, {
+      
+      // Prepare rental data - backend will handle customer creation/finding
+      const rentalData = {
+        vehicle_ref: formData.vehicle_ref,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        destination: formData.destination,
+        hire_type: formData.hire_type || 'Direct Client',
+        // Include customer data - backend will find or create customer automatically
+        customer_name: formData.customer_name,
+        customer_email: formData.customer_email,
+        customer_phone: formData.customer_phone,
+        customer_address: formData.customer_address || 'Nairobi',
+        customer_id_number: formData.customer_id || ''
+      };
+
+      const response = await axios.post(`${API_URL}/api/rentals`, rentalData, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (response.data.success) {
-        toast.success('Car hired out successfully!');
+        // Show success message with contract info
+        if (response.data.contract?.sent && response.data.contract?.email) {
+          toast.success(
+            `Vehicle hired out successfully! Contract sent to ${response.data.contract.email}`,
+            {
+              autoClose: 5000,
+              position: 'top-right',
+            }
+          );
+        } else if (response.data.contract?.error) {
+          toast.warning(
+            response.data.message || `Vehicle hired out successfully, but contract could not be sent.`,
+            {
+              autoClose: 5000,
+              position: 'top-right',
+            }
+          );
+          console.warn('Contract generation error:', response.data.contract.error);
+        } else {
+          toast.success(
+            response.data.message || 'Car hired out successfully!',
+            {
+              autoClose: 5000,
+              position: 'top-right',
+            }
+          );
+        }
         fetchAllData(false); // Silent refresh after action
       }
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to hire out car');
+      const errorMessage = error.response?.data?.message || 'Failed to hire out car';
+      toast.error(errorMessage);
+      console.error('Rental creation error:', error);
+    } finally {
+      delete formData._isSubmitting;
     }
   };
 
@@ -800,6 +852,7 @@ export default function DriverPortal() {
                 vehicle={selectedVehicle}
                 vehicles={vehicles}
                 rentals={rentals}
+                onVehicleChange={(vehicle) => setSelectedVehicle(vehicle)}
               />
             )}
 

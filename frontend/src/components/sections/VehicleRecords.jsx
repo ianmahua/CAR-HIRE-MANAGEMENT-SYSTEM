@@ -3,7 +3,7 @@ import { Car, Search, Calendar, User, MapPin, Clock, Phone, CheckCircle, XCircle
 import Card from '../base/Card';
 import Button from '../base/Button';
 
-const VehicleRecords = ({ vehicle: selectedVehicle, vehicles = [], rentals = [] }) => {
+const VehicleRecords = ({ vehicle: selectedVehicle, vehicles = [], rentals = [], onVehicleChange }) => {
   const [licensePlateSearch, setLicensePlateSearch] = useState('');
   const [vehicle, setVehicle] = useState(selectedVehicle);
   const [searchTerm, setSearchTerm] = useState('');
@@ -68,6 +68,10 @@ const VehicleRecords = ({ vehicle: selectedVehicle, vehicles = [], rentals = [] 
                   onClick={() => {
                     setVehicle(v);
                     setLicensePlateSearch(v.license_plate || '');
+                    // Notify parent of vehicle selection
+                    if (onVehicleChange) {
+                      onVehicleChange(v);
+                    }
                   }}
                   className="w-full p-3 bg-white/10 hover:bg-white/20 rounded-xl text-left transition-all backdrop-blur-sm"
                 >
@@ -96,6 +100,10 @@ const VehicleRecords = ({ vehicle: selectedVehicle, vehicles = [], rentals = [] 
                   onClick={() => {
                     setVehicle(v);
                     setLicensePlateSearch(v.license_plate || '');
+                    // Notify parent of vehicle selection
+                    if (onVehicleChange) {
+                      onVehicleChange(v);
+                    }
                   }}
                   className="p-4 border-2 border-gray-200 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all text-left"
                 >
@@ -175,6 +183,10 @@ const VehicleRecords = ({ vehicle: selectedVehicle, vehicles = [], rentals = [] 
           setVehicle(null);
           setLicensePlateSearch('');
           setSearchTerm('');
+          // Notify parent to clear selected vehicle
+          if (onVehicleChange) {
+            onVehicleChange(null);
+          }
         }}
         className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all font-semibold group"
       >
@@ -196,6 +208,10 @@ const VehicleRecords = ({ vehicle: selectedVehicle, vehicles = [], rentals = [] 
                   setVehicle(null);
                   setLicensePlateSearch('');
                   setSearchTerm('');
+                  // Notify parent to clear selected vehicle
+                  if (onVehicleChange) {
+                    onVehicleChange(null);
+                  }
                 }}
                 className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-sm font-semibold transition-all flex items-center gap-1"
               >

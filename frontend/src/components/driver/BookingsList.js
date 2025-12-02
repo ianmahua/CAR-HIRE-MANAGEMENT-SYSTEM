@@ -182,12 +182,13 @@ const BookingsList = () => {
                 <TableCell sx={{ fontWeight: 600, color: '#111827' }}>End Date</TableCell>
                 <TableCell sx={{ fontWeight: 600, color: '#111827' }}>Total Fee</TableCell>
                 <TableCell sx={{ fontWeight: 600, color: '#111827' }}>Status</TableCell>
+                <TableCell sx={{ fontWeight: 600, color: '#111827' }}>Contract</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {filteredBookings.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 8 }}>
                     <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
                       <CalendarIcon sx={{ fontSize: 64, color: '#d1d5db' }} />
                       <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 600 }}>
@@ -218,6 +219,13 @@ const BookingsList = () => {
               ) : (
                 filteredBookings.map((booking) => {
                   const statusColors = getStatusColor(booking.rental_status);
+                  const baseURL = api.defaults?.baseURL || '';
+                  const contractFile = booking.contract_url
+                    ? booking.contract_url.split(/[/\\]/).pop()
+                    : null;
+                  const contractHref = contractFile
+                    ? `${baseURL.replace(/\/+$/, '')}/contracts/${contractFile}`
+                    : null;
                   return (
                     <TableRow
                       key={booking._id}
@@ -284,6 +292,35 @@ const BookingsList = () => {
                           }}
                         />
                       </TableCell>
+                      <TableCell>
+                        {contractHref ? (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.open(contractHref, '_blank', 'noopener');
+                            }}
+                            sx={{
+                              textTransform: 'none',
+                              borderRadius: 2,
+                              fontWeight: 600,
+                              borderColor: '#1E3A8A',
+                              color: '#1E3A8A',
+                              '&:hover': {
+                                borderColor: '#1e40af',
+                                bgcolor: '#eff6ff'
+                              }
+                            }}
+                          >
+                            View Contract
+                          </Button>
+                        ) : (
+                          <Typography variant="caption" color="text.secondary">
+                            Not generated
+                          </Typography>
+                        )}
+                      </TableCell>
                     </TableRow>
                   );
                 })
@@ -303,4 +340,5 @@ const BookingsList = () => {
 };
 
 export default BookingsList;
+
 

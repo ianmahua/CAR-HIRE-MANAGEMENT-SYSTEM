@@ -10,21 +10,26 @@ const { protect } = require('../middleware/auth');
 const roleMapping = require('../config/roleMapping');
 const { sendPasswordResetEmail, sendUserInvitationEmail } = require('../services/emailService');
 
-// Configure Passport Google Strategy
+// Configure Passport Google Strategy (only if credentials are provided)
 // Simply pass the profile to the callback route - user creation happens there
-passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.GOOGLE_CALLBACK_URL || '/api/auth/google/callback'
-}, async (accessToken, refreshToken, profile, done) => {
-  try {
-    // Pass profile data to callback route for processing
-    return done(null, profile);
-  } catch (error) {
-    console.error('Google OAuth error:', error);
-    return done(error, null);
-  }
-}));
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || '/api/auth/google/callback'
+  }, async (accessToken, refreshToken, profile, done) => {
+    try {
+      // Pass profile data to callback route for processing
+      return done(null, profile);
+    } catch (error) {
+      console.error('Google OAuth error:', error);
+      return done(error, null);
+    }
+  }));
+  console.log('Google OAuth strategy configured');
+} else {
+  console.log('Google OAuth not configured - skipping (set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to enable)');
+}
 
 passport.serializeUser((user, done) => {
   done(null, user._id);

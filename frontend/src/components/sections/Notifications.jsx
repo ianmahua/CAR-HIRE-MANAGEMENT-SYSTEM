@@ -72,3 +72,4 @@ const Notifications = ({ notifications }) => {
 
 export default Notifications;
 
+

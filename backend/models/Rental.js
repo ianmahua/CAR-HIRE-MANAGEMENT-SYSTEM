@@ -96,6 +96,36 @@ const rentalSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Contract'
   },
+  // Contract generation and delivery tracking
+  contract_url: {
+    type: String,
+    default: null
+  },
+  contract_generated_at: {
+    type: Date,
+    default: null
+  },
+  contract_sent_via_email: {
+    type: Boolean,
+    default: false
+  },
+  contract_sent_via_whatsapp: {
+    type: Boolean,
+    default: false
+  },
+  // Customer details (for easier contract generation - can be populated from customer_ref)
+  customer_name: {
+    type: String
+  },
+  customer_email: {
+    type: String
+  },
+  customer_phone: {
+    type: String
+  },
+  customer_address: {
+    type: String
+  },
   payment_status: {
     type: String,
     enum: ['Awaiting', 'Paid', 'Reversed', 'Partial'],

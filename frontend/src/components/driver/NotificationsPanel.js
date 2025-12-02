@@ -26,112 +26,77 @@ import {
 const NotificationsPanel = ({ open, onClose, onExtendRental, onMarkReturned }) => {
   const [notifications, setNotifications] = useState([]);
 
-  // Fetch rentals for notifications
-  const { data: rentals } = useQuery('rentals', async () => {
+  // Fetch backend-generated driver notifications
+  const { data } = useQuery('driver_notifications', async () => {
     try {
-      const response = await api.get('/api/rentals');
-      return response.data.data || [];
+      const response = await api.get('/api/notifications/driver');
+      return response.data || { success: false, notifications: [] };
     } catch (error) {
-      return [];
+      return { success: false, notifications: [] };
     }
   });
 
   useEffect(() => {
-    if (rentals) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(today);
-      endOfDay.setHours(23, 59, 59, 999);
+    if (!data || !data.success) {
+      setNotifications([]);
+      return;
+    }
 
-      const notifs = [];
+    const backendNotifications = data.notifications || [];
+    const mapped = backendNotifications.map((n, idx) => {
+      const rental = n.booking || n.rental || null;
+      const vehiclePlate =
+        rental?.vehicle_ref?.license_plate ||
+        rental?.vehicle_ref?.licensePlate ||
+        rental?.license_plate ||
+        'N/A';
+      const customerName = rental?.customer_ref?.name || rental?.customer_name || 'Customer';
 
-      // Vehicles due today
-      const dueToday = rentals.filter(rental => {
-        if (!rental.end_date || rental.rental_status !== 'Active') return false;
-        const returnDate = new Date(rental.end_date);
-        returnDate.setHours(0, 0, 0, 0);
-        return returnDate.getTime() === today.getTime();
-      });
-
-      dueToday.forEach(rental => {
-        notifs.push({
-          id: `due-today-${rental._id}`,
+      if (n.type === 'return_today') {
+        return {
+          id: n._id || `return-today-${rental?._id || idx}`,
           type: 'return_today',
           priority: 'high',
-          title: `Vehicle ${rental.vehicle_ref?.license_plate || 'N/A'} is expected to return TODAY`,
-          message: `Customer: ${rental.customer_ref?.name || 'N/A'}`,
-          rental: rental,
-          date: rental.end_date
-        });
-      });
+          title: `Vehicle ${vehiclePlate} is expected to return TODAY`,
+          message: `Customer: ${customerName}`,
+          rental,
+          date: rental?.end_date || rental?.return_date
+        };
+      }
 
-      // Vehicles due in 1-2 days
-      const dueSoon = rentals.filter(rental => {
-        if (!rental.end_date || rental.rental_status !== 'Active') return false;
-        const returnDate = new Date(rental.end_date);
-        const daysUntilReturn = Math.ceil((returnDate - today) / (1000 * 60 * 60 * 24));
-        return daysUntilReturn > 0 && daysUntilReturn <= 2;
-      });
-
-      dueSoon.forEach(rental => {
-        const returnDate = new Date(rental.end_date);
-        const daysUntilReturn = Math.ceil((returnDate - today) / (1000 * 60 * 60 * 24));
-        notifs.push({
-          id: `due-soon-${rental._id}`,
+      if (n.type === 'overdue') {
+        return {
+          id: n._id || `overdue-${rental?._id || idx}`,
           type: 'return_soon',
-          priority: daysUntilReturn === 1 ? 'high' : 'medium',
-          title: `Vehicle ${rental.vehicle_ref?.license_plate || 'N/A'} is expected to return in ${daysUntilReturn} day${daysUntilReturn > 1 ? 's' : ''}`,
-          message: `Customer: ${rental.customer_ref?.name || 'N/A'}`,
-          rental: rental,
-          date: rental.end_date
-        });
-      });
+          priority: 'high',
+          title: `Vehicle ${vehiclePlate} return is OVERDUE`,
+          message: `Customer: ${customerName}`,
+          rental,
+          date: rental?.end_date || rental?.return_date
+        };
+      }
 
-      // Future bookings (2 days and 1 day before)
-      const futureBookings = rentals.filter(rental => {
-        if (!rental.start_date || rental.rental_status !== 'Pending') return false;
-        const bookingDate = new Date(rental.start_date);
-        const daysUntilBooking = Math.ceil((bookingDate - today) / (1000 * 60 * 60 * 24));
-        return daysUntilBooking === 1 || daysUntilBooking === 2;
-      });
+      // Treat generic "reminder" as upcoming booking reminder
+      return {
+        id: n._id || `reminder-${rental?._id || idx}`,
+        type: 'booking_reminder',
+        priority: 'medium',
+        title: `Upcoming booking for ${customerName}`,
+        message: n.message || `Vehicle: ${vehiclePlate}`,
+        rental,
+        date: rental?.start_date || rental?.booking_date
+      };
+    });
 
-      futureBookings.forEach(rental => {
-        const bookingDate = new Date(rental.start_date);
-        const daysUntilBooking = Math.ceil((bookingDate - today) / (1000 * 60 * 60 * 24));
-        notifs.push({
-          id: `booking-${rental._id}`,
-          type: 'booking_reminder',
-          priority: daysUntilBooking === 1 ? 'high' : 'medium',
-          title: `Customer ${rental.customer_ref?.name || 'N/A'} has a booking for ${rental.vehicle_ref?.license_plate || 'N/A'} ${daysUntilBooking === 1 ? 'TOMORROW' : 'in 2 days'}`,
-          message: `Booking date: ${new Date(rental.start_date).toLocaleDateString()}`,
-          rental: rental,
-          date: rental.start_date
-        });
-      });
+    // Filter out any nulls and sort by priority + date
+    const cleaned = mapped.filter(Boolean).sort((a, b) => {
+      if (a.priority === 'high' && b.priority !== 'high') return -1;
+      if (a.priority !== 'high' && b.priority === 'high') return 1;
+      return new Date(b.date || 0) - new Date(a.date || 0);
+    });
 
-      // Pending payments
-      const pendingPayments = rentals.filter(rental => 
-        (rental.payment_status === 'Pending' || rental.payment_status === 'Partial') && rental.rental_status === 'Active'
-      );
-
-      pendingPayments.forEach(rental => {
-        notifs.push({
-          id: `payment-${rental._id}`,
-          type: 'payment_pending',
-          priority: 'medium',
-          title: `Pending payment for ${rental.vehicle_ref?.license_plate || 'N/A'}`,
-          message: `Customer: ${rental.customer_ref?.name || 'N/A'} • Amount: KES ${rental.total_fee_gross?.toLocaleString() || '0'}`,
-          rental: rental
-        });
-      });
-
-      setNotifications(notifs.sort((a, b) => {
-        if (a.priority === 'high' && b.priority !== 'high') return -1;
-        if (a.priority !== 'high' && b.priority === 'high') return 1;
-        return new Date(b.date || 0) - new Date(a.date || 0);
-      }));
-    }
-  }, [rentals]);
+    setNotifications(cleaned);
+  }, [data]);
 
   const getNotificationColor = (priority) => {
     if (priority === 'high') return '#dc2626';
@@ -272,4 +237,5 @@ const NotificationsPanel = ({ open, onClose, onExtendRental, onMarkReturned }) =
 };
 
 export default NotificationsPanel;
+
 

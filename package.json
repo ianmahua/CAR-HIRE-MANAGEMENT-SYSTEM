@@ -11,7 +11,8 @@
     "install-all": "npm install && cd frontend && npm install",
     "build": "cd frontend && npm run build",
     "setup": "node setup-env.js && node create-admin.js",
-    "deploy": "npm run build && npm start"
+    "deploy": "npm run build && npm start",
+    "test:contract": "node backend/test/testContract.js"
   },
   "keywords": [
     "car-rental",
@@ -25,7 +26,7 @@
     "axios": "^1.5.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
+    "dotenv": "^16.6.1",
     "express": "^4.18.2",
     "express-rate-limit": "^6.10.0",
     "express-session": "^1.18.2",
@@ -38,7 +39,9 @@
     "nodemailer": "^6.9.4",
     "passport": "^0.6.0",
     "passport-google-oauth20": "^2.0.0",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "pdfkit": "^0.14.0",
+    "puppeteer": "^22.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

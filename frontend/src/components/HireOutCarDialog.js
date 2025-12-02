@@ -24,7 +24,9 @@ import { toast } from 'react-toastify';
 const HireOutCarDialog = ({ open, onClose }) => {
   const [formData, setFormData] = useState({
     customer_name: '',
+    customer_email: '',
     customer_phone: '',
+    customer_address: 'Nairobi',
     customer_id: '',
     vehicle_ref: '',
     start_date: '',
@@ -33,6 +35,7 @@ const HireOutCarDialog = ({ open, onClose }) => {
     hire_type: 'Direct Client'
   });
   const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const queryClient = useQueryClient();
 
   // Fetch available vehicles
@@ -62,14 +65,43 @@ const HireOutCarDialog = ({ open, onClose }) => {
       return response.data;
     },
     {
-      onSuccess: () => {
-        toast.success('Car hired out successfully!');
+      onSuccess: (data) => {
+        // Show success message with contract info
+        if (data.contract?.sent && data.contract?.email) {
+          toast.success(
+            `Vehicle hired out successfully! Contract sent to ${data.contract.email}`,
+            {
+              autoClose: 5000,
+              position: 'top-right',
+            }
+          );
+        } else if (data.contract?.error) {
+          toast.warning(
+            data.message || `Vehicle hired out successfully, but contract could not be sent.`,
+            {
+              autoClose: 5000,
+              position: 'top-right',
+            }
+          );
+          console.warn('Contract generation error:', data.contract.error);
+        } else {
+          toast.success(
+            data.message || 'Car hired out successfully!',
+            {
+              autoClose: 5000,
+              position: 'top-right',
+            }
+          );
+        }
         queryClient.invalidateQueries('driverAssignments');
         queryClient.invalidateQueries('availableVehicles');
+        queryClient.invalidateQueries('rentals');
         handleClose();
       },
       onError: (error) => {
-        toast.error(error.response?.data?.message || 'Failed to hire out car');
+        const errorMessage = error.response?.data?.message || 'Failed to hire out car';
+        toast.error(errorMessage);
+        console.error('Rental creation error:', error);
       }
     }
   );
@@ -89,11 +121,31 @@ const HireOutCarDialog = ({ open, onClose }) => {
     }
   };
 
+  const validateEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePhone = (phone) => {
+    // Accept Kenyan format: 07xx xxx xxx or 2547xx xxx xxx
+    const phoneRegex = /^(?:254|0)?[17]\d{8}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+  };
+
   const validateForm = () => {
     const newErrors = {};
     
     if (!formData.customer_name) newErrors.customer_name = 'Customer name is required';
-    if (!formData.customer_phone) newErrors.customer_phone = 'Customer phone is required';
+    if (!formData.customer_email) {
+      newErrors.customer_email = 'Customer email is required';
+    } else if (!validateEmail(formData.customer_email)) {
+      newErrors.customer_email = 'Please enter a valid email address';
+    }
+    if (!formData.customer_phone) {
+      newErrors.customer_phone = 'Customer phone is required';
+    } else if (!validatePhone(formData.customer_phone)) {
+      newErrors.customer_phone = 'Please enter a valid Kenyan phone number (07xx xxx xxx)';
+    }
     if (!formData.vehicle_ref) newErrors.vehicle_ref = 'Vehicle selection is required';
     if (!formData.start_date) newErrors.start_date = 'Start date is required';
     if (!formData.end_date) newErrors.end_date = 'End date is required';
@@ -114,60 +166,51 @@ const HireOutCarDialog = ({ open, onClose }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Prevent multiple submissions
+    if (isSubmitting || createRentalMutation.isLoading) {
+      return;
+    }
+    
     if (!validateForm()) {
       return;
     }
 
-    // Find or create customer
-    let customerId = formData.customer_id;
-    
-    if (!customerId && formData.customer_phone) {
-      // Check if customer exists by phone
-      const existingCustomer = customers?.find(
-        c => c.phone === formData.customer_phone
-      );
-      
-      if (existingCustomer) {
-        customerId = existingCustomer._id;
-      } else {
-        // Create new customer
-        try {
-          const customerResponse = await api.post('/api/customers', {
-            name: formData.customer_name,
-            phone: formData.customer_phone,
-            ID_number: formData.customer_id || '',
-            email: ''
-          });
-          customerId = customerResponse.data.data._id;
-        } catch (error) {
-          toast.error('Failed to create customer');
-          return;
-        }
-      }
+    setIsSubmitting(true);
+
+    try {
+      // Create rental - backend will handle customer creation/finding
+      const rentalData = {
+        vehicle_ref: formData.vehicle_ref,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        destination: formData.destination,
+        hire_type: formData.hire_type,
+        // Include customer data - backend will find or create customer
+        customer_name: formData.customer_name,
+        customer_email: formData.customer_email,
+        customer_phone: formData.customer_phone,
+        customer_address: formData.customer_address || 'Nairobi',
+        customer_id_number: formData.customer_id || ''
+      };
+
+      await createRentalMutation.mutateAsync(rentalData);
+    } catch (error) {
+      // Error is handled by mutation's onError
+      console.error('Rental creation error:', error);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Calculate duration
-    const start = new Date(formData.start_date);
-    const end = new Date(formData.end_date);
-    const duration_days = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
-
-    // Create rental
-    const rentalData = {
-      vehicle_ref: formData.vehicle_ref,
-      customer_ref: customerId,
-      start_date: formData.start_date,
-      end_date: formData.end_date,
-      destination: formData.destination,
-      hire_type: formData.hire_type
-    };
-
-    createRentalMutation.mutate(rentalData);
   };
 
   const handleClose = () => {
+    if (isSubmitting || createRentalMutation.isLoading) {
+      return; // Prevent closing during submission
+    }
     setFormData({
       customer_name: '',
+      customer_email: '',
       customer_phone: '',
+      customer_address: 'Nairobi',
       customer_id: '',
       vehicle_ref: '',
       start_date: '',
@@ -176,6 +219,7 @@ const HireOutCarDialog = ({ open, onClose }) => {
       hire_type: 'Direct Client'
     });
     setErrors({});
+    setIsSubmitting(false);
     onClose();
   };
 
@@ -232,24 +276,51 @@ const HireOutCarDialog = ({ open, onClose }) => {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="Phone Number"
-                name="customer_phone"
-                value={formData.customer_phone}
+                label="Customer Email *"
+                name="customer_email"
+                type="email"
+                value={formData.customer_email}
                 onChange={handleChange}
                 required
-                error={!!errors.customer_phone}
-                helperText={errors.customer_phone}
-                placeholder="254712345678"
+                error={!!errors.customer_email}
+                helperText={errors.customer_email}
+                placeholder="customer@example.com"
               />
             </Grid>
 
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="ID Number (Optional)"
+                label="Phone Number *"
+                name="customer_phone"
+                value={formData.customer_phone}
+                onChange={handleChange}
+                required
+                error={!!errors.customer_phone}
+                helperText={errors.customer_phone || 'Format: 07xx xxx xxx'}
+                placeholder="07xx xxx xxx"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Customer Address"
+                name="customer_address"
+                value={formData.customer_address}
+                onChange={handleChange}
+                placeholder="Nairobi"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="ID/Passport Number"
                 name="customer_id"
                 value={formData.customer_id}
                 onChange={handleChange}
+                placeholder="Optional"
               />
             </Grid>
 
@@ -362,7 +433,7 @@ const HireOutCarDialog = ({ open, onClose }) => {
           <Button
             onClick={handleClose}
             sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
-            disabled={createRentalMutation.isLoading}
+            disabled={isSubmitting || createRentalMutation.isLoading}
           >
             Cancel
           </Button>
@@ -376,13 +447,17 @@ const HireOutCarDialog = ({ open, onClose }) => {
               fontWeight: 600,
               px: 3,
               '&:hover': {
-                bgcolor: '#c2410c'
+                bgcolor: isSubmitting || createRentalMutation.isLoading ? '#ea580c' : '#c2410c'
+              },
+              '&:disabled': {
+                bgcolor: '#ea580c',
+                opacity: 0.6
               }
             }}
-            disabled={createRentalMutation.isLoading}
-            startIcon={createRentalMutation.isLoading ? <CircularProgress size={20} /> : <CarIcon />}
+            disabled={isSubmitting || createRentalMutation.isLoading}
+            startIcon={(isSubmitting || createRentalMutation.isLoading) ? <CircularProgress size={20} /> : <CarIcon />}
           >
-            {createRentalMutation.isLoading ? 'Processing...' : 'Hire Out Car'}
+            {(isSubmitting || createRentalMutation.isLoading) ? 'Processing...' : 'Hire Out Car'}
           </Button>
         </DialogActions>
       </form>

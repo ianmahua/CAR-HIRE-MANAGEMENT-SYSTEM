@@ -96,7 +96,18 @@ function App() {
       <AuthProvider>
         <Router>
           <AppRoutes />
-          <ToastContainer position="top-right" autoClose={3000} />
+          <ToastContainer 
+            position="top-right" 
+            autoClose={5000}
+            hideProgressBar={false}
+            newestOnTop={true}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="light"
+          />
         </Router>
       </AuthProvider>
     </QueryClientProvider>

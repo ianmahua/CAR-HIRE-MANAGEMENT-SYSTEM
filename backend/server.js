@@ -1,13 +1,12 @@
+require('dotenv').config();
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const cron = require('node-cron');
 const session = require('express-session');
 const passport = require('passport');
-
-// Load environment variables
-dotenv.config();
+const path = require('path');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -23,6 +22,7 @@ const ownerRoutes = require('./routes/owner');
 const mpesaRoutes = require('./routes/mpesa');
 const reportRoutes = require('./routes/reports');
 const userRoutes = require('./routes/users');
+const emailLogsRoutes = require('./routes/emailLogs');
 
 // Import scheduled tasks
 const { generateWeeklyReport } = require('./services/reportService');
@@ -31,7 +31,7 @@ const app = express();
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
   credentials: true
 }));
 app.use(express.json());
@@ -56,6 +56,9 @@ app.use(passport.session());
 // Static files for uploads
 app.use('/uploads', express.static('uploads'));
 
+// Static files for contracts
+app.use('/contracts', express.static(path.join(__dirname, 'contracts')));
+
 // Database connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ressey-tours-crms', {
   useNewUrlParser: true,
@@ -78,6 +81,7 @@ app.use('/api/owner', ownerRoutes);
 app.use('/api/mpesa', mpesaRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/email-logs', emailLogsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -109,5 +113,12 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  // Initialize email reminder cron jobs
+  try {
+    require('./jobs/emailReminderJobs');
+    console.log('✅ Email reminder jobs initialized');
+  } catch (e) {
+    console.error('❌ Failed to initialize email reminder jobs:', e.message);
+  }
 });
 

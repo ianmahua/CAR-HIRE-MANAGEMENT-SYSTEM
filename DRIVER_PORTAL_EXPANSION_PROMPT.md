@@ -424,3 +424,4 @@ const VehicleRecordModal = ({ open, onClose, vehicleId }) => {
 
 **Start implementing these features step by step, ensuring each component is well-tested before moving to the next. Focus on creating a beautiful, functional, and user-friendly interface.**
 
+

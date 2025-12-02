@@ -177,3 +177,4 @@ const Vehicles = ({ vehicles, onVehicleClick }) => {
 
 export default Vehicles;
 
+

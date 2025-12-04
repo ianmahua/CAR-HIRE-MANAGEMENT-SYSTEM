@@ -116,9 +116,54 @@ const sendUserInvitationEmail = async (email, role, resetUrl) => {
   }
 };
 
+// Send booking reminder email
+const sendBookingReminderEmail = async (booking) => {
+  try {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.log('Email credentials not configured. Booking reminder for:', booking.customerEmail);
+      return { sent: false };
+    }
+
+    const bookingDate = new Date(booking.bookingDate);
+    const companyPhone = process.env.COMPANY_PHONE || '+254 700 000 000';
+
+    const mailOptions = {
+      from: `"The Ressey Tours" <${process.env.EMAIL_USER}>`,
+      to: booking.customerEmail,
+      subject: 'Booking Reminder - The Ressey Tours',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #e89d0b;">Booking Reminder</h2>
+          <p>Dear ${booking.customerName},</p>
+          <p>This is a reminder that your booking for <strong>${booking.vehicleMake} ${booking.vehicleModel}</strong> is tomorrow, ${bookingDate.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.</p>
+          <div style="background-color: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+            <p><strong>Booking Details:</strong></p>
+            <ul style="list-style: none; padding: 0;">
+              <li style="margin: 8px 0;">📅 <strong>Booking Date:</strong> ${bookingDate.toLocaleDateString()}</li>
+              <li style="margin: 8px 0;">⏱️ <strong>Duration:</strong> ${booking.numberOfDays} day${booking.numberOfDays > 1 ? 's' : ''}</li>
+              <li style="margin: 8px 0;">📍 <strong>Destination:</strong> ${booking.destination}</li>
+              <li style="margin: 8px 0;">💰 <strong>Total Amount:</strong> KES ${booking.totalAmount.toLocaleString()}</li>
+            </ul>
+          </div>
+          <p>Please confirm if you still need the vehicle by contacting us at <strong>${companyPhone}</strong>.</p>
+          <p style="margin-top: 30px;">Thank you,<br><strong>The Ressey Tours & Car Hire</strong></p>
+        </div>
+      `
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Booking reminder email sent:', info.messageId);
+    return { sent: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Error sending booking reminder email:', error);
+    return { sent: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendPasswordResetEmail,
-  sendUserInvitationEmail
+  sendUserInvitationEmail,
+  sendBookingReminderEmail
 };
 
 

@@ -56,10 +56,10 @@ const Vehicles = ({ vehicles, onVehicleClick }) => {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card onClick={() => setStatusFilter('all')} className={statusFilter === 'all' ? 'ring-2 ring-indigo-500' : ''}>
+        <Card onClick={() => setStatusFilter('all')} className={statusFilter === 'all' ? 'ring-2 ring-brand-orange' : ''}>
           <div className="text-center">
-            <Car className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
-            <p className="text-3xl font-bold text-indigo-600">{stats.total}</p>
+            <Car className="w-8 h-8 text-brand-orange mx-auto mb-2" />
+            <p className="text-3xl font-bold text-brand-orange">{stats.total}</p>
             <p className="text-sm text-gray-600">Total Fleet</p>
           </div>
         </Card>
@@ -77,10 +77,10 @@ const Vehicles = ({ vehicles, onVehicleClick }) => {
             <p className="text-sm text-gray-600">Rented Out</p>
           </div>
         </Card>
-        <Card onClick={() => setStatusFilter('garage')} className={statusFilter === 'garage' ? 'ring-2 ring-indigo-500' : ''}>
+        <Card onClick={() => setStatusFilter('garage')} className={statusFilter === 'garage' ? 'ring-2 ring-brand-orange' : ''}>
           <div className="text-center">
-            <Wrench className="w-8 h-8 text-indigo-600 mx-auto mb-2" />
-            <p className="text-3xl font-bold text-indigo-600">{stats.garage}</p>
+            <Wrench className="w-8 h-8 text-brand-orange mx-auto mb-2" />
+            <p className="text-3xl font-bold text-brand-orange">{stats.garage}</p>
             <p className="text-sm text-gray-600">In Garage</p>
           </div>
         </Card>
@@ -96,7 +96,7 @@ const Vehicles = ({ vehicles, onVehicleClick }) => {
               placeholder="Search by plate, make, model..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded-2xl focus:outline-none focus:border-brand-orange transition-colors"
             />
           </div>
           <div className="flex gap-2">
@@ -141,7 +141,7 @@ const Vehicles = ({ vehicles, onVehicleClick }) => {
             className="group"
           >
             <div className="flex items-center gap-4 mb-4">
-              <div className="p-4 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-2xl text-white">
+              <div className="p-4 bg-gradient-to-br from-brand-orange to-orange-600 rounded-2xl text-white">
                 <Car className="w-8 h-8" />
               </div>
               <div className="flex-1">

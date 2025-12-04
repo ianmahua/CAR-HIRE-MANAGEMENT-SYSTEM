@@ -58,3 +58,6 @@ EmailLogSchema.index({ rental_id: 1, email_type: 1, sent_at: -1 });
 module.exports = mongoose.model('EmailLog', EmailLogSchema);
 
 
+
+
+

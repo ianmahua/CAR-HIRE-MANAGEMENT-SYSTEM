@@ -1,7 +1,9 @@
 const cron = require('node-cron');
 const Rental = require('../models/Rental');
+const Booking = require('../models/Booking');
 const EmailLog = require('../models/EmailLog');
 const EmailSender = require('../utils/emailSender');
+const { sendBookingReminderEmail } = require('../services/emailService');
 
 const emailSender = new EmailSender();
 
@@ -197,8 +199,61 @@ cron.schedule(
   }
 );
 
+// JOB 3: Daily at 9:00 AM EAT - Booking reminders
+cron.schedule(
+  '0 9 * * *',
+  async () => {
+    console.log('[Cron] Running booking reminder job...');
+
+    try {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(0, 0, 0, 0);
+
+      const endOfTomorrow = new Date(tomorrow);
+      endOfTomorrow.setHours(23, 59, 59, 999);
+
+      // Find bookings for tomorrow with status 'pending'
+      const bookings = await Booking.find({
+        bookingDate: { $gte: tomorrow, $lte: endOfTomorrow },
+        status: 'pending'
+      });
+
+      console.log(`[Cron] Found ${bookings.length} bookings for tomorrow`);
+
+      for (const booking of bookings) {
+        try {
+          if (!booking.customerEmail) {
+            console.log(`[Cron] Skipping booking ${booking._id} - no customer email`);
+            continue;
+          }
+
+          const result = await sendBookingReminderEmail(booking);
+
+          if (result?.sent) {
+            console.log(`[Cron] ✅ Sent booking reminder to ${booking.customerEmail}`);
+          } else {
+            console.warn(`[Cron] ⚠️ Failed to send booking reminder for booking ${booking._id}`, result?.error);
+          }
+        } catch (error) {
+          console.error(`[Cron] ❌ Error sending booking reminder for booking ${booking._id}:`, error.message);
+        }
+      }
+
+      console.log('[Cron] ✅ Booking reminder job completed');
+    } catch (error) {
+      console.error('[Cron] ❌ Error in booking reminder job:', error);
+    }
+  },
+  {
+    timezone: 'Africa/Nairobi'
+  }
+);
+
 console.log('✅ Email reminder cron jobs initialized');
 console.log('   - 24-hour reminders: Daily at 8:00 AM EAT');
 console.log('   - Morning reminders: Daily at 8:00 AM EAT');
+console.log('   - Booking reminders: Daily at 9:00 AM EAT');
+
 
 

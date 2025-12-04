@@ -292,3 +292,6 @@ const VehicleRecordModal = ({ open, onClose, vehicleId, vehicle }) => {
 export default VehicleRecordModal;
 
 
+
+
+

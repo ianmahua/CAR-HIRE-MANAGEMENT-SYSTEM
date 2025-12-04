@@ -30,3 +30,6 @@ const StatBadge = ({ label, value, icon: Icon, color = 'indigo', onClick }) => {
 export default StatBadge;
 
 
+
+
+

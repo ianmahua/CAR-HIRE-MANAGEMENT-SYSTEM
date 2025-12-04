@@ -72,10 +72,16 @@ export default function AuthCallback() {
               navigate('/owner');
               break;
             case 'customer':
-              navigate('/dashboard');
+              // Customer portal not available yet - redirect to login with message
+              toast.warning('Customer portal is not available yet. Please contact admin for role assignment.');
+              localStorage.removeItem('token');
+              navigate('/login');
               break;
             default:
-              navigate('/dashboard');
+              // Unknown role - redirect to login
+              toast.error('Invalid user role. Please contact admin.');
+              localStorage.removeItem('token');
+              navigate('/login');
           }
         } catch (err) {
           console.error('Callback error:', err);
@@ -108,5 +114,7 @@ export default function AuthCallback() {
     </Box>
   );
 }
+
+
 
 

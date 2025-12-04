@@ -12,7 +12,8 @@
     "build": "cd frontend && npm run build",
     "setup": "node setup-env.js && node create-admin.js",
     "deploy": "npm run build && npm start",
-    "test:contract": "node backend/test/testContract.js"
+    "test:contract": "node backend/test/testContract.js",
+    "reseed": "node backend/seeds/reseedDatabase.js"
   },
   "keywords": [
     "car-rental",

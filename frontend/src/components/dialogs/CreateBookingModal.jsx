@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
 import Modal from '../base/Modal';
 import Button from '../base/Button';
-import { Calendar, Car, User, MapPin } from 'lucide-react';
+import { Calendar, Car, User, MapPin, Phone as PhoneIcon, Mail } from 'lucide-react';
+
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
   const [formData, setFormData] = useState({
-    customer_name: '',
-    customer_phone: '',
-    vehicle_make: '',
-    vehicle_model: '',
-    start_date: '',
-    end_date: '',
-    price_per_day: '',
-    notes: '',
-    destination: ''
+    customerName: '',
+    customerIdNumber: '',
+    customerPhone: '',
+    customerEmail: '',
+    vehicleMake: '',
+    vehicleModel: '',
+    bookingDate: '',
+    numberOfDays: '',
+    destination: '',
+    dailyRate: '',
+    notes: ''
   });
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -27,17 +32,56 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.customer_name) newErrors.customer_name = 'Required';
-    if (!formData.customer_phone) newErrors.customer_phone = 'Required';
-    if (!formData.vehicle_make) newErrors.vehicle_make = 'Required';
-    if (!formData.vehicle_model) newErrors.vehicle_model = 'Required';
-    if (!formData.start_date) newErrors.start_date = 'Required';
-    if (!formData.end_date) newErrors.end_date = 'Required';
-    if (!formData.price_per_day) newErrors.price_per_day = 'Required';
-    
-    if (formData.start_date && formData.end_date) {
-      if (new Date(formData.end_date) <= new Date(formData.start_date)) {
-        newErrors.end_date = 'End date must be after start date';
+    if (!formData.customerName) newErrors.customerName = 'Required';
+    if (!formData.customerIdNumber) newErrors.customerIdNumber = 'Required';
+    if (!formData.customerPhone) newErrors.customerPhone = 'Required';
+    if (!formData.customerEmail) newErrors.customerEmail = 'Required';
+    if (!formData.vehicleMake) newErrors.vehicleMake = 'Required';
+    if (!formData.vehicleModel) newErrors.vehicleModel = 'Required';
+    if (!formData.bookingDate) newErrors.bookingDate = 'Required';
+    if (!formData.numberOfDays) newErrors.numberOfDays = 'Required';
+    if (!formData.destination) newErrors.destination = 'Required';
+    if (!formData.dailyRate) newErrors.dailyRate = 'Required';
+
+    // Phone format
+    if (formData.customerPhone) {
+      const phoneRegex = /^\+?\d{9,15}$/;
+      if (!phoneRegex.test(String(formData.customerPhone))) {
+        newErrors.customerPhone = 'Invalid phone number';
+      }
+    }
+
+    // Email format
+    if (formData.customerEmail) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(String(formData.customerEmail))) {
+        newErrors.customerEmail = 'Invalid email address';
+      }
+    }
+
+    // Booking date must be in the future
+    if (formData.bookingDate) {
+      const start = new Date(formData.bookingDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (isNaN(start.getTime()) || start < today) {
+        newErrors.bookingDate = 'Pickup date must be in the future';
+      }
+    }
+
+    // numberOfDays > 0
+    if (formData.numberOfDays) {
+      const days = Number(formData.numberOfDays);
+      if (Number.isNaN(days) || days <= 0) {
+        newErrors.numberOfDays = 'Number of days must be greater than 0';
+      }
+    }
+
+    // dailyRate >= 0
+    if (formData.dailyRate) {
+      const rate = Number(formData.dailyRate);
+      if (Number.isNaN(rate) || rate < 0) {
+        newErrors.dailyRate = 'Daily rate must be a non-negative number';
       }
     }
     
@@ -45,25 +89,65 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validate()) {
-      onSubmit(formData);
+    if (!validate()) return;
+
+    try {
+      setSubmitting(true);
+      const token = localStorage.getItem('token');
+
+      const payload = {
+        ...formData,
+        numberOfDays: Number(formData.numberOfDays),
+        dailyRate: Number(formData.dailyRate)
+      };
+
+      const res = await fetch(
+        `${API_URL}/api/driver/bookings`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || 'Failed to create booking');
+      }
+
+      if (onSubmit) {
+        onSubmit(data.data);
+      }
       handleClose();
+    } catch (err) {
+      console.error('Create booking error:', err);
+      setErrors(prev => ({
+        ...prev,
+        form: err.message || 'Failed to create booking'
+      }));
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleClose = () => {
     setFormData({
-      customer_name: '',
-      customer_phone: '',
-      vehicle_make: '',
-      vehicle_model: '',
-      start_date: '',
-      end_date: '',
-      price_per_day: '',
-      notes: '',
-      destination: ''
+      customerName: '',
+      customerIdNumber: '',
+      customerPhone: '',
+      customerEmail: '',
+      vehicleMake: '',
+      vehicleModel: '',
+      bookingDate: '',
+      numberOfDays: '',
+      destination: '',
+      dailyRate: '',
+      notes: ''
     });
     setErrors({});
     onClose();
@@ -81,37 +165,72 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Customer Name *
+                Full Name *
               </label>
               <input
                 type="text"
-                name="customer_name"
-                value={formData.customer_name}
+                name="customerName"
+                value={formData.customerName}
                 onChange={handleChange}
                 className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
-                  errors.customer_name ? 'border-rose-500' : 'border-gray-200'
+                  errors.customerName ? 'border-rose-500' : 'border-gray-200'
                 }`}
               />
-              {errors.customer_name && (
-                <p className="text-rose-600 text-sm mt-1">{errors.customer_name}</p>
+              {errors.customerName && (
+                <p className="text-rose-600 text-sm mt-1">{errors.customerName}</p>
               )}
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
+                ID Number *
+              </label>
+              <input
+                type="text"
+                name="customerIdNumber"
+                value={formData.customerIdNumber}
+                onChange={handleChange}
+                className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
+                  errors.customerIdNumber ? 'border-rose-500' : 'border-gray-200'
+                }`}
+              />
+              {errors.customerIdNumber && (
+                <p className="text-rose-600 text-sm mt-1">{errors.customerIdNumber}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <PhoneIcon className="w-4 h-4 text-indigo-600" />
                 Phone Number *
               </label>
               <input
                 type="tel"
-                name="customer_phone"
-                value={formData.customer_phone}
+                name="customerPhone"
+                value={formData.customerPhone}
                 onChange={handleChange}
-                placeholder="254712345678"
                 className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
-                  errors.customer_phone ? 'border-rose-500' : 'border-gray-200'
+                  errors.customerPhone ? 'border-rose-500' : 'border-gray-200'
                 }`}
               />
-              {errors.customer_phone && (
-                <p className="text-rose-600 text-sm mt-1">{errors.customer_phone}</p>
+              {errors.customerPhone && (
+                <p className="text-rose-600 text-sm mt-1">{errors.customerPhone}</p>
+              )}
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <Mail className="w-4 h-4 text-indigo-600" />
+                Email Address *
+              </label>
+              <input
+                type="email"
+                name="customerEmail"
+                value={formData.customerEmail}
+                onChange={handleChange}
+                className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
+                  errors.customerEmail ? 'border-rose-500' : 'border-gray-200'
+                }`}
+              />
+              {errors.customerEmail && (
+                <p className="text-rose-600 text-sm mt-1">{errors.customerEmail}</p>
               )}
             </div>
           </div>
@@ -131,16 +250,16 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
               </label>
               <input
                 type="text"
-                name="vehicle_make"
-                value={formData.vehicle_make}
+                name="vehicleMake"
+                value={formData.vehicleMake}
                 onChange={handleChange}
                 placeholder="e.g., Toyota, Nissan, Subaru"
                 className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
-                  errors.vehicle_make ? 'border-rose-500' : 'border-gray-200'
+                  errors.vehicleMake ? 'border-rose-500' : 'border-gray-200'
                 }`}
               />
-              {errors.vehicle_make && (
-                <p className="text-rose-600 text-sm mt-1">{errors.vehicle_make}</p>
+              {errors.vehicleMake && (
+                <p className="text-rose-600 text-sm mt-1">{errors.vehicleMake}</p>
               )}
             </div>
             <div>
@@ -150,78 +269,78 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
               </label>
               <input
                 type="text"
-                name="vehicle_model"
-                value={formData.vehicle_model}
+                name="vehicleModel"
+                value={formData.vehicleModel}
                 onChange={handleChange}
                 placeholder="e.g., Prado, X-Trail, Forester"
                 className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
-                  errors.vehicle_model ? 'border-rose-500' : 'border-gray-200'
+                  errors.vehicleModel ? 'border-rose-500' : 'border-gray-200'
                 }`}
               />
-              {errors.vehicle_model && (
-                <p className="text-rose-600 text-sm mt-1">{errors.vehicle_model}</p>
+              {errors.vehicleModel && (
+                <p className="text-rose-600 text-sm mt-1">{errors.vehicleModel}</p>
               )}
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Price Per Day (KES) *
+                Daily Rental Rate (KES) *
               </label>
               <input
                 type="number"
-                name="price_per_day"
-                value={formData.price_per_day}
+                name="dailyRate"
+                value={formData.dailyRate}
                 onChange={handleChange}
                 min="0"
                 step="100"
                 placeholder="e.g., 5000"
                 className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
-                  errors.price_per_day ? 'border-rose-500' : 'border-gray-200'
+                  errors.dailyRate ? 'border-rose-500' : 'border-gray-200'
                 }`}
               />
-              {errors.price_per_day && (
-                <p className="text-rose-600 text-sm mt-1">{errors.price_per_day}</p>
+              {errors.dailyRate && (
+                <p className="text-rose-600 text-sm mt-1">{errors.dailyRate}</p>
               )}
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                Start Date *
+                Booking Date (Pickup) *
               </label>
               <input
                 type="date"
-                name="start_date"
-                value={formData.start_date}
+                name="bookingDate"
+                value={formData.bookingDate}
                 onChange={handleChange}
                 min={new Date().toISOString().split('T')[0]}
                 className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
-                  errors.start_date ? 'border-rose-500' : 'border-gray-200'
+                  errors.bookingDate ? 'border-rose-500' : 'border-gray-200'
                 }`}
               />
-              {errors.start_date && (
-                <p className="text-rose-600 text-sm mt-1">{errors.start_date}</p>
+              {errors.bookingDate && (
+                <p className="text-rose-600 text-sm mt-1">{errors.bookingDate}</p>
               )}
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                End Date *
+                Number of Days *
               </label>
               <input
-                type="date"
-                name="end_date"
-                value={formData.end_date}
+                type="number"
+                name="numberOfDays"
+                value={formData.numberOfDays}
                 onChange={handleChange}
-                min={formData.start_date || new Date().toISOString().split('T')[0]}
+                min="1"
                 className={`w-full px-4 py-3 border-2 rounded-2xl focus:outline-none focus:border-indigo-500 transition-colors ${
-                  errors.end_date ? 'border-rose-500' : 'border-gray-200'
+                  errors.numberOfDays ? 'border-rose-500' : 'border-gray-200'
                 }`}
               />
-              {errors.end_date && (
-                <p className="text-rose-600 text-sm mt-1">{errors.end_date}</p>
+              {errors.numberOfDays && (
+                <p className="text-rose-600 text-sm mt-1">{errors.numberOfDays}</p>
               )}
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-indigo-600" />
-                Destination (Optional)
+                Destination *
               </label>
               <input
                 type="text"
@@ -248,13 +367,17 @@ const CreateBookingModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) 
           </div>
         </div>
 
+        {errors.form && (
+          <p className="text-rose-600 text-sm">{errors.form}</p>
+        )}
+
         {/* Actions */}
         <div className="flex gap-4 pt-4 border-t border-gray-200">
           <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
             Cancel
           </Button>
-          <Button type="submit" variant="success" className="flex-1">
-            Create Booking
+          <Button type="submit" variant="success" className="flex-1" disabled={submitting}>
+            {submitting ? 'Creating...' : 'Create Booking'}
           </Button>
         </div>
       </form>

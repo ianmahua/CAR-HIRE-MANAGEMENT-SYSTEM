@@ -108,6 +108,25 @@ const vehicleSchema = new mongoose.Schema({
     registration_number: String,
     expiry_date: Date
   },
+  // Maintenance / health tracking
+  maintenance: {
+    lastServiceDate: Date,
+    lastServiceMileage: Number,
+    currentMileage: {
+      type: Number,
+      default: 0
+    },
+    serviceIntervalKm: {
+      type: Number,
+      default: 5000
+    },
+    serviceIntervalDays: {
+      type: Number,
+      default: 90
+    },
+    nextServiceDueDate: Date,
+    nextServiceDueMileage: Number
+  },
   created_at: {
     type: Date,
     default: Date.now

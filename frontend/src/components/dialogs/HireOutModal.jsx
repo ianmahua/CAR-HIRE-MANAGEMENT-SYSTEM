@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Modal from '../base/Modal';
 import Button from '../base/Button';
 import { Car, User, Calendar, MapPin } from 'lucide-react';
 
-const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
+const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit, selectedVehicle, bookingData: propBookingData }) => {
+  const location = useLocation();
+  const bookingData = propBookingData || location.state?.bookingData;
+
   const [formData, setFormData] = useState({
     customer_name: '',
     customer_email: '',
@@ -17,6 +21,37 @@ const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
     hire_type: 'Direct Client'
   });
   const [errors, setErrors] = useState({});
+
+  // Pre-fill from booking data or selected vehicle
+  useEffect(() => {
+    if (isOpen) {
+      if (bookingData) {
+        // Pre-fill from booking data
+        const bookingDate = new Date(bookingData.bookingDate);
+        const endDate = new Date(bookingDate);
+        endDate.setDate(endDate.getDate() + bookingData.numberOfDays);
+
+        setFormData({
+          customer_name: bookingData.customerName || '',
+          customer_email: bookingData.customerEmail || '',
+          customer_phone: bookingData.customerPhone || '',
+          customer_address: 'Nairobi',
+          customer_id: bookingData.customerIdNumber || '',
+          vehicle_ref: '', // Driver must select actual vehicle
+          start_date: bookingDate.toISOString().split('T')[0],
+          end_date: endDate.toISOString().split('T')[0],
+          destination: bookingData.destination || '',
+          hire_type: 'Direct Client'
+        });
+      } else if (selectedVehicle) {
+        // Pre-select vehicle if provided
+        setFormData(prev => ({
+          ...prev,
+          vehicle_ref: selectedVehicle._id || selectedVehicle.vehicle_id || ''
+        }));
+      }
+    }
+  }, [isOpen, bookingData, selectedVehicle]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -96,6 +131,16 @@ const HireOutModal = ({ isOpen, onClose, vehicles, customers, onSubmit }) => {
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Hire Out a Car" size="lg">
+      {bookingData && (
+        <div className="mb-4 p-3 bg-brand-orange/10 border-2 border-brand-orange/30 rounded-xl">
+          <p className="text-sm text-gray-700">
+            <strong>Pre-filled from booking:</strong> {bookingData.customerName} - {bookingData.vehicleMake} {bookingData.vehicleModel}
+          </p>
+          <p className="text-xs text-gray-600 mt-1">
+            Please select the actual vehicle from the fleet and complete any remaining fields.
+          </p>
+        </div>
+      )}
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Customer Information */}
         <div>
